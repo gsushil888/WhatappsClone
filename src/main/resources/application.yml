@@ -1,0 +1,112 @@
+spring:
+  application:
+    name: whatapps-backend
+  main:
+    allow-bean-definition-overriding: true
+  data:
+    redis:
+      repositories:
+        enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    defer-datasource-initialization: true
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+logging:
+  level:
+    com.whatsapp: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.springframework.web.servlet.DispatcherServlet: ERROR
+    org.springframework.servlet.handler.HandlerMappingIntrospector: ERROR
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.mail: WARN
+
+jwt:
+  secret: ${JWT_SECRET:dGVzdC1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1lbnZpcm9ubWVudC13aXRoLWxvbmctc2VjdXJlLWtleS1mb3ItaHM1MTItYWxnb3JpdGhtLXRoYXQtaXMtc2VjdXJlLWVub3VnaA==}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:900000}
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:86400000}
+
+app:
+  name: WhatsApp Clone
+  version: 1.0.0
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  redis:
+    enabled: ${REDIS_ENABLED:false}
+  otp:
+    ttl: ${OTP_TTL:5m}
+    resend-wait: ${OTP_RESEND_WAIT:1m}
+    max-attempts: ${OTP_MAX_ATTEMPTS:3}
+  email:
+    from: ${MAIL_USERNAME:tmail7458@gmail.com}
+    async-enabled: ${EMAIL_ASYNC_ENABLED:true}
+  upload:
+    dir: ${UPLOAD_DIR:uploads}
+    max-size: ${UPLOAD_MAX_SIZE:10485760}
+    allowed-types:
+      images: jpg,jpeg,png,gif,webp
+      videos: mp4,avi,mov,wmv,webm
+      documents: pdf,doc,docx,xls,xlsx,txt,csv
+      audio: mp3,wav,ogg,m4a,aac
+  media:
+    cdn-url: ${CDN_URL:https://cdn.example.com}
+    thumbnail-size: ${THUMBNAIL_SIZE:200}
+    compress-images: ${COMPRESS_IMAGES:true}
+  websocket:
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+  notification:
+    fcm:
+      server-key: ${FCM_SERVER_KEY:}
+      enabled: ${FCM_ENABLED:false}
+    apns:
+      enabled: ${APNS_ENABLED:false}
+  rate-limit:
+    auth: ${RATE_LIMIT_AUTH:5/minute}
+    messages: ${RATE_LIMIT_MESSAGES:100/minute}
+    api: ${RATE_LIMIT_API:1000/hour}
+    file-upload: ${RATE_LIMIT_FILE_UPLOAD:10/minute}

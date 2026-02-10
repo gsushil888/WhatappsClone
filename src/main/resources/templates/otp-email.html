@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .header { background-color: #25D366; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px; }
+        .otp-box { background-color: #f8f9fa; border: 2px dashed #25D366; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; }
+        .otp-code { font-size: 32px; font-weight: bold; color: #25D366; letter-spacing: 5px; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 th:text="${appName}">WhatsApp Clone</h1>
+            <p>OTP Verification</p>
+        </div>
+        
+        <div class="content">
+            <h2>Hello!</h2>
+            <p>You have requested to verify your account. Please use the following OTP code to complete your verification:</p>
+            
+            <div class="otp-box">
+                <div class="otp-code" th:text="${otp}">123456</div>
+                <p><strong>This code will expire in <span th:text="${expiryMinutes}">5</span> minutes</strong></p>
+            </div>
+            
+            <div class="warning">
+                <strong>Security Notice:</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Never share this OTP with anyone</li>
+                    <li>We will never ask for your OTP via phone or email</li>
+                    <li>If you didn't request this, please ignore this email</li>
+                </ul>
+            </div>
+            
+            <p>If you have any questions, please contact our support team.</p>
+            
+            <p>Best regards,<br>
+            <strong th:text="${appName}">WhatsApp Clone</strong> Team</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            <p style="font-size: 12px; color: #666;">
+                This email was sent to <span th:text="${email}">user@example.com</span> on <span th:text="${timestamp}">timestamp</span>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; <span th:text="${currentYear}">2024</span> <span th:text="${appName}">WhatsApp Clone</span>. All rights reserved.</p>
+            <p>This is an automated message, please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
