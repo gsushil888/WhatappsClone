@@ -2,6 +2,7 @@ package com.whatsapp.controller;
 
 import com.whatsapp.dto.MessageDto;
 import com.whatsapp.service.MessageService;
+import com.whatsapp.service.PresenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -20,14 +21,26 @@ public class WebSocketMessageController {
 
     private final MessageService messageService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PresenceService presenceService;
 
     @MessageMapping("/chat.message")
     public void sendMessage(@Payload MessageDto.SendMessageRequest request, 
                            SimpMessageHeaderAccessor headerAccessor,
                            Principal principal) {
         try {
-            Long userId = Long.parseLong(principal.getName());
-            Long conversationId = (Long) headerAccessor.getSessionAttributes().get("conversationId");
+        	log.info("Request in Websocket Message => "+request);
+        	log.info("Header of Websocket Message  => "+headerAccessor);
+            
+            Long userId = getUserId(principal, headerAccessor);
+            
+            // Get conversationId from native headers
+            String conversationIdStr = headerAccessor.getFirstNativeHeader("conversationId");
+            if (conversationIdStr == null || conversationIdStr.isEmpty()) {
+                throw new IllegalArgumentException("conversationId header is required");
+            }
+            Long conversationId = Long.parseLong(conversationIdStr);
+            
+            log.info("Sending message from user {} to conversation {}", userId, conversationId);
             
             MessageDto.MessageResponse response = messageService.sendMessage(userId, conversationId, request, null, null);
             
@@ -35,9 +48,22 @@ public class WebSocketMessageController {
             
         } catch (Exception e) {
             log.error("Error processing message: ", e);
-            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", 
+            String userId = principal != null ? principal.getName() : "unknown";
+            messagingTemplate.convertAndSendToUser(userId, "/queue/errors", 
                 Map.of("error", e.getMessage()));
         }
+    }
+    
+    private Long getUserId(Principal principal, SimpMessageHeaderAccessor headerAccessor) {
+        if (principal != null) {
+            return Long.parseLong(principal.getName());
+        }
+        // Fallback to session attributes
+        Object userId = headerAccessor.getSessionAttributes().get("userId");
+        if (userId != null) {
+            return Long.parseLong(userId.toString());
+        }
+        throw new IllegalStateException("User not authenticated");
     }
 
     @MessageMapping("/chat.typing")
@@ -45,10 +71,14 @@ public class WebSocketMessageController {
                             Principal principal) {
         try {
             Long userId = Long.parseLong(principal.getName());
-            log.info("User {} typing in conversation {}", userId, typingIndicator.getConversationId());
+            log.info("User {} {} typing in conversation {}", 
+                    userId, typingIndicator.getAction(), typingIndicator.getConversationId());
             
-            // Broadcast typing indicator to conversation participants
-            messagingTemplate.convertAndSend("/queue/typing/" + userId, typingIndicator);
+            if ("start".equals(typingIndicator.getAction())) {
+                presenceService.setUserTyping(userId, typingIndicator.getConversationId());
+            } else {
+                presenceService.setUserStoppedTyping(userId, typingIndicator.getConversationId());
+            }
             
         } catch (Exception e) {
             log.error("Error processing typing indicator: ", e);
@@ -94,8 +124,12 @@ public class WebSocketMessageController {
             Long userId = Long.parseLong(principal.getName());
             log.info("User {} updating presence to {}", userId, presenceUpdate.getStatus());
             
-            // Update user presence and notify contacts
-            messagingTemplate.convertAndSend("/queue/presence/" + userId, presenceUpdate);
+            // Update user presence using PresenceService
+            if ("ONLINE".equals(presenceUpdate.getStatus())) {
+                presenceService.setUserOnline(userId, presenceUpdate.getDeviceInfo());
+            } else {
+                presenceService.setUserOffline(userId);
+            }
             
         } catch (Exception e) {
             log.error("Error updating presence: ", e);
@@ -212,12 +246,15 @@ public class WebSocketMessageController {
     public static class PresenceUpdate {
         private String status; // online, offline
         private String lastActiveAt;
+        private String deviceInfo;
         
         // Getters and setters
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
         public String getLastActiveAt() { return lastActiveAt; }
         public void setLastActiveAt(String lastActiveAt) { this.lastActiveAt = lastActiveAt; }
+        public String getDeviceInfo() { return deviceInfo; }
+        public void setDeviceInfo(String deviceInfo) { this.deviceInfo = deviceInfo; }
     }
 
     public static class CallInitiation {

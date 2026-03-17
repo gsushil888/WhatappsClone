@@ -34,15 +34,17 @@ public class MessageController {
 
 	@GetMapping("/conversations/{conversationId}/messages")
 	public ResponseEntity<ApiResponse<MessageDto.MessageListResponse>> getMessages(Authentication authentication,
-			@PathVariable Long conversationId, @RequestParam(defaultValue = "1") int page,
-			@RequestParam(defaultValue = "50") int limit, @RequestParam(required = false) Long afterMessageId,
+			@PathVariable Long conversationId,
+			@RequestParam(defaultValue = "50") int limit,
+			@RequestParam(required = false) Long beforeMessageId,
+			@RequestParam(required = false) Long afterMessageId,
 			@RequestHeader Map<String, String> headers) {
 
 		Long userId = (Long) authentication.getPrincipal();
 		Map<String, String> deviceInfo = RequestContext.getDeviceInfo();
 		if (deviceInfo == null) deviceInfo = new HashMap<>();
-		MessageDto.MessageListResponse messages = messageService.getMessages(userId, conversationId, page, limit,
-				afterMessageId, deviceInfo, headers);
+		MessageDto.MessageListResponse messages = messageService.getMessages(userId, conversationId, limit,
+				beforeMessageId, afterMessageId, deviceInfo, headers);
 
 		return ResponseEntity.ok(ApiResponse.<MessageDto.MessageListResponse>builder().success(true).data(messages)
 				.correlationId(RequestContext.getCorrelationId()).build());

@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -94,7 +95,9 @@ public class UserDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AddContactRequest {
-        private Long contactUserId;
+        @NotBlank(message = "Phone number is required")
+        @Pattern(regexp = "^[+]?[0-9]{10,15}$", message = "Phone number must be 10-15 digits")
+        private String phoneNumber;
         
         @Size(max = 100, message = "Display name cannot exceed 100 characters")
         private String displayName;

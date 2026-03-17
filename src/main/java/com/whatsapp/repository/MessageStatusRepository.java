@@ -37,4 +37,6 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
            "WHERE ms.message.id = :messageId AND ms.user.id = :userId")
     int updateMessageStatus(@Param("messageId") Long messageId, @Param("userId") Long userId, 
                            @Param("status") MessageStatus.DeliveryStatus status, @Param("timestamp") LocalDateTime timestamp);
+
+    void deleteByMessageId(Long messageId);
 }

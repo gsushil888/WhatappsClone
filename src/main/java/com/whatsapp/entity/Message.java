@@ -15,7 +15,7 @@ import java.util.List;
 @Table(name = "messages", indexes = {
     @Index(name = "idx_message_conversation", columnList = "conversationId"),
     @Index(name = "idx_message_sender", columnList = "senderId"),
-    @Index(name = "idx_message_timestamp", columnList = "timestamp"),
+    @Index(name = "idx_message_created_at", columnList = "createdAt"),
     @Index(name = "idx_message_type", columnList = "type"),
     @Index(name = "idx_message_status", columnList = "status")
 })
@@ -82,11 +82,8 @@ public class Message {
     @Builder.Default
     private boolean deletedForSender = false;
 
-    @Column(name = "media_url")
-    private String mediaUrl;
-
-    @Column(name = "timestamp")
-    private LocalDateTime timestamp;
+//    @Column(name = "media_url")
+//    private String mediaUrl;
 
     @Column(name = "edited_at")
     private LocalDateTime editedAt;

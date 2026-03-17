@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -28,10 +30,12 @@ public class ConversationParticipant {
     @Column(name = "id")
     private Long id;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conversation_id", nullable = false)
     private Conversation conversation;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -56,10 +60,27 @@ public class ConversationParticipant {
     @Column(name = "last_read_message_id")
     private Long lastReadMessageId;
 
+    @Column(name = "is_favorite", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isFavorite = false;
+
+    @Column(name = "is_archived", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isArchived = false;
+
+    @Column(name = "is_pinned", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isPinned = false;
+
+    @Column(name = "is_muted", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isMuted = false;
+
+    @Column(name = "mute_until")
+    private LocalDateTime muteUntil;
+
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "added_by")
     private User addedBy;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promoted_by")
     private User promotedBy;
@@ -67,6 +88,7 @@ public class ConversationParticipant {
     @Column(name = "promoted_at")
     private LocalDateTime promotedAt;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "participant", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ParticipantPermission> permissions;
 

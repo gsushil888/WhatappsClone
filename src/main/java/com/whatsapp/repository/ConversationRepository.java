@@ -15,9 +15,36 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
 
     @Query("SELECT DISTINCT c FROM Conversation c " +
            "JOIN c.participants p " +
-           "WHERE p.user.id = :userId AND p.status = 'ACTIVE' " +
-           "ORDER BY c.lastMessageAt DESC NULLS LAST, c.createdAt DESC")
+           "WHERE p.user.id = :userId AND p.status = 'ACTIVE' AND (p.isArchived = false OR p.isArchived IS NULL) " +
+           "ORDER BY c.updatedAt DESC, c.createdAt DESC")
     List<Conversation> findUserConversations(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT DISTINCT c FROM Conversation c " +
+           "JOIN c.participants p " +
+           "WHERE p.user.id = :userId AND p.status = 'ACTIVE' AND (p.isFavorite = true) AND (p.isArchived = false OR p.isArchived IS NULL) " +
+           "ORDER BY c.updatedAt DESC, c.createdAt DESC")
+    List<Conversation> findFavoriteConversations(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT DISTINCT c FROM Conversation c " +
+           "JOIN c.participants p " +
+           "WHERE p.user.id = :userId AND p.status = 'ACTIVE' AND p.isArchived = true " +
+           "ORDER BY c.updatedAt DESC, c.createdAt DESC")
+    List<Conversation> findArchivedConversations(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT DISTINCT c FROM Conversation c " +
+           "JOIN c.participants p " +
+           "WHERE p.user.id = :userId AND p.status = 'ACTIVE' AND (p.isArchived = false OR p.isArchived IS NULL) " +
+           "AND EXISTS (SELECT 1 FROM MessageStatus ms WHERE ms.message.conversation.id = c.id AND ms.user.id = :userId AND ms.status IN ('SENT', 'DELIVERED')) " +
+           "ORDER BY c.updatedAt DESC, c.createdAt DESC")
+    List<Conversation> findUnreadConversations(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT DISTINCT c FROM Conversation c " +
+           "JOIN c.participants p " +
+           "JOIN c.participants p2 ON p2.conversation.id = c.id AND p2.user.id != :userId " +
+           "JOIN Contact ct ON (ct.user.id = :userId AND ct.contactUser.id = p2.user.id) " +
+           "WHERE p.user.id = :userId AND p.status = 'ACTIVE' AND (p.isArchived = false OR p.isArchived IS NULL) AND c.type = 'INDIVIDUAL' AND ct.isBlocked = true " +
+           "ORDER BY c.updatedAt DESC, c.createdAt DESC")
+    List<Conversation> findBlockedConversations(@Param("userId") Long userId, Pageable pageable);
 
     @Query("SELECT c FROM Conversation c " +
            "JOIN c.participants p " +

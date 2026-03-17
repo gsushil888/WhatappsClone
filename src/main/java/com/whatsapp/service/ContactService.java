@@ -62,11 +62,19 @@ public class ContactService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
 
-        User contactUser = userRepository.findById(request.getContactUserId())
-                .orElseThrow(() -> new UserException(ErrorCode.USER_CONTACT_NOT_FOUND));
+        // Find user by phone number instead of user ID
+        User contactUser = userRepository.findByPhoneNumber(request.getPhoneNumber())
+                .orElseThrow(() -> new UserException(ErrorCode.USER_CONTACT_NOT_FOUND, 
+                    "User with phone number " + request.getPhoneNumber() + " is not registered on WhatsApp"));
 
-        if (contactRepository.existsByUserIdAndContactUserId(userId, request.getContactUserId())) {
-            throw new UserException(ErrorCode.CONTACT_ALREADY_EXISTS);
+        // Check if user is trying to add themselves
+        if (contactUser.getId().equals(userId)) {
+            throw new UserException(ErrorCode.INVALID_OPERATION, "Cannot add yourself as a contact");
+        }
+
+        // Check if contact already exists
+        if (contactRepository.existsByUserIdAndContactUserId(userId, contactUser.getId())) {
+            throw new UserException(ErrorCode.CONTACT_ALREADY_EXISTS, "User is already in your contacts");
         }
 
         Contact contact = Contact.builder()

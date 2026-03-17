@@ -36,7 +36,7 @@ public interface SearchRepository extends JpaRepository<User, Long> {
            "WHERE cp.user.id = :userId AND cp.status = 'ACTIVE' " +
            "AND m.isDeleted = false " +
            "AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "ORDER BY m.timestamp DESC")
+           "ORDER BY m.createdAt DESC")
     List<Message> searchMessages(@Param("userId") Long userId, @Param("query") String query, Pageable pageable);
 
     @Query("SELECT u FROM User u " +

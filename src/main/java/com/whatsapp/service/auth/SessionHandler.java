@@ -22,16 +22,16 @@ public class SessionHandler {
     private final EmailService emailService;
 
     public AuthDto.LoginResponse createDirectLoginResponse(User user, UserSession existingSession) {
+        LocalDateTime now = LocalDateTime.now();
         String accessToken = jwtUtil.generateAccessToken(user.getId(), existingSession.getId());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId(), existingSession.getId());
         
-        sessionService.updateSessionTokens(existingSession, accessToken, refreshToken);
-        
+        existingSession.setJwtToken(accessToken);
+        existingSession.setRefreshToken(refreshToken);
         user.setOnline(true);
-        user.setLastActiveAt(LocalDateTime.now());
-        userRepository.save(user);
+        user.setLastActiveAt(now);
         
-        // No welcome email on re-login with existing session
+        sessionService.updateSessionAndUserPresence(existingSession, user);
         
         return AuthDto.LoginResponse.builder()
             .requiresOtp(false)
@@ -40,7 +40,7 @@ public class SessionHandler {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .expiresIn(3600)
-                .expiresAt(LocalDateTime.now().plusHours(1))
+                .expiresAt(now.plusHours(1))
                 .build())
             .build();
     }

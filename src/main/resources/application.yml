@@ -65,7 +65,7 @@ logging:
 jwt:
   secret: ${JWT_SECRET:dGVzdC1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1lbnZpcm9ubWVudC13aXRoLWxvbmctc2VjdXJlLWtleS1mb3ItaHM1MTItYWxnb3JpdGhtLXRoYXQtaXMtc2VjdXJlLWVub3VnaA==}
   access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:900000}
-  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:86400000}
+  refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:3600000}
 
 app:
   name: WhatsApp Clone
@@ -81,7 +81,7 @@ app:
     from: ${MAIL_USERNAME:tmail7458@gmail.com}
     async-enabled: ${EMAIL_ASYNC_ENABLED:true}
   upload:
-    dir: ${UPLOAD_DIR:uploads}
+    dir: ${UPLOAD_DIR:D:/Project_Whatapps/whatapps_frontend/whatsapps-frontend/src/assets}
     max-size: ${UPLOAD_MAX_SIZE:10485760}
     allowed-types:
       images: jpg,jpeg,png,gif,webp
@@ -93,7 +93,7 @@ app:
     thumbnail-size: ${THUMBNAIL_SIZE:200}
     compress-images: ${COMPRESS_IMAGES:true}
   websocket:
-    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:8080}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
