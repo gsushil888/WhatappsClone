@@ -3,6 +3,7 @@
 *.log
 logs/
 _documentations/
+*.md
 
 ## Springbot ##
 application-*.yml

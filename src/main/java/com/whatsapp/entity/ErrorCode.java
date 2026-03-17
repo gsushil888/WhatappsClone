@@ -14,8 +14,8 @@ public enum ErrorCode {
     AUTH_SESSION_EXPIRED("AUTH_004", "Session expired", HttpStatus.UNAUTHORIZED),
     AUTH_INVALID_TOKEN("AUTH_005", "Invalid token", HttpStatus.UNAUTHORIZED),
     AUTH_ACCOUNT_SUSPENDED("AUTH_006", "Account suspended", HttpStatus.FORBIDDEN),
-    AUTH_REGISTRATION_FAILED("AUTH_007", "Registration failed", HttpStatus.BAD_REQUEST),
-    AUTH_OTP_INVALID("AUTH_008", "Invalid OTP", HttpStatus.BAD_REQUEST),
+    AUTH_REGISTRATION_FAILED("AUTH_007", "Registration failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    AUTH_OTP_INVALID("AUTH_008", "Invalid OTP", HttpStatus.UNAUTHORIZED),
     AUTH_OTP_EXPIRED("AUTH_009", "OTP expired", HttpStatus.BAD_REQUEST),
     AUTH_OTP_ATTEMPTS_EXCEEDED("AUTH_010", "OTP attempts exceeded", HttpStatus.TOO_MANY_REQUESTS),
     AUTH_DEVICE_NOT_AUTHORIZED("AUTH_011", "Device not authorized", HttpStatus.FORBIDDEN),
@@ -32,6 +32,7 @@ public enum ErrorCode {
     USER_CONTACT_NOT_FOUND("USER_007", "Contact not found", HttpStatus.NOT_FOUND),
     USER_CONTACT_ALREADY_EXISTS("USER_008", "Contact already exists", HttpStatus.CONFLICT),
     USER_BLOCKED("USER_009", "User is blocked", HttpStatus.FORBIDDEN),
+    INVALID_OPERATION("USER_010", "Invalid operation", HttpStatus.BAD_REQUEST),
     
     // Contact Errors (CONTACT_xxx)
     CONTACT_ALREADY_EXISTS("CONTACT_001", "Contact already exists", HttpStatus.CONFLICT),

@@ -4,12 +4,14 @@ import com.whatsapp.dto.ApiResponse;
 import com.whatsapp.entity.ErrorCode;
 import com.whatsapp.util.RequestContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import jakarta.validation.ConstraintViolationException;
 import java.time.LocalDateTime;
@@ -85,6 +87,91 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(ex.getErrorCode().getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(ContactException.class)
+    public ResponseEntity<ApiResponse<Void>> handleContactException(ContactException ex, WebRequest request) {
+        String correlationId = RequestContext.getCorrelationId();
+        log.error("Contact error [{}]: {} - {}", correlationId, ex.getErrorCode().getCode(), ex.getMessage());
+        
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
+                .success(false)
+                .message(ex.getMessage())
+                .errorCode(ex.getErrorCode().getCode())
+                .correlationId(correlationId)
+                .statusCode(ex.getErrorCode().getHttpStatus().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(ex.getErrorCode().getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(StoryException.class)
+    public ResponseEntity<ApiResponse<Void>> handleStoryException(StoryException ex, WebRequest request) {
+        String correlationId = RequestContext.getCorrelationId();
+        log.error("Story error [{}]: {} - {}", correlationId, ex.getErrorCode().getCode(), ex.getMessage());
+        
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
+                .success(false)
+                .message(ex.getMessage())
+                .errorCode(ex.getErrorCode().getCode())
+                .correlationId(correlationId)
+                .statusCode(ex.getErrorCode().getHttpStatus().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(ex.getErrorCode().getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(CallException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCallException(CallException ex, WebRequest request) {
+        String correlationId = RequestContext.getCorrelationId();
+        log.error("Call error [{}]: {} - {}", correlationId, ex.getErrorCode().getCode(), ex.getMessage());
+        
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
+                .success(false)
+                .message(ex.getMessage())
+                .errorCode(ex.getErrorCode().getCode())
+                .correlationId(correlationId)
+                .statusCode(ex.getErrorCode().getHttpStatus().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(ex.getErrorCode().getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(MediaException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMediaException(MediaException ex, WebRequest request) {
+        String correlationId = RequestContext.getCorrelationId();
+        log.error("Media error [{}]: {} - {}", correlationId, ex.getErrorCode().getCode(), ex.getMessage());
+        
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
+                .success(false)
+                .message(ex.getMessage())
+                .errorCode(ex.getErrorCode().getCode())
+                .correlationId(correlationId)
+                .statusCode(ex.getErrorCode().getHttpStatus().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(ex.getErrorCode().getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex, WebRequest request) {
+        String correlationId = RequestContext.getCorrelationId();
+        log.error("File upload size exceeded [{}]: {}", correlationId, ex.getMessage());
+        
+        ApiResponse<Void> response = ApiResponse.<Void>builder()
+                .success(false)
+                .message("File size exceeds maximum limit of 10MB")
+                .errorCode("FILE_001")
+                .correlationId(correlationId)
+                .statusCode(HttpStatus.BAD_REQUEST.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(SystemException.class)

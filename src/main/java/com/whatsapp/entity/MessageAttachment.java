@@ -17,31 +17,31 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class MessageAttachment {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "message_id", nullable = false)
-    private Message message;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "message_id", nullable = false)
+	private Message message;
 
-    @Enumerated(EnumType.STRING)
-    private AttachmentType type;
+	@Enumerated(EnumType.STRING)
+	private AttachmentType type;
 
-    private String fileName;
-    private String fileUrl;
-    private String thumbnailUrl;
-    private Long fileSize;
-    private String mimeType;
-    private Integer width;
-    private Integer height;
-    private Integer duration;
-    private String metadata;
+	private String fileName;
+	private String fileUrl;
+	private String thumbnailUrl;
+	private Long fileSize;
+	private String mimeType;
+	private Integer width;
+	private Integer height;
+	private Integer duration;
+	private String metadata;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+	@CreationTimestamp
+	private LocalDateTime createdAt;
 
-    public enum AttachmentType {
-        IMAGE, VIDEO, AUDIO, DOCUMENT, STICKER
-    }
+	public enum AttachmentType {
+		IMAGE, VIDEO, AUDIO, DOCUMENT, STICKER
+	}
 }

@@ -18,7 +18,9 @@ public interface OtpVerificationRepository extends JpaRepository<OtpVerification
             OtpVerification.OtpStatus status, 
             LocalDateTime now);
     
-    Optional<OtpVerification> findByTempSessionId(String tempSessionId);
+    @Query("SELECT o FROM OtpVerification o WHERE o.tempSessionId = :tempSessionId " +
+           "ORDER BY o.createdAt DESC LIMIT 1")
+    Optional<OtpVerification> findByTempSessionId(@Param("tempSessionId") String tempSessionId);
 
     Optional<OtpVerification> findByContactInfoAndOtpTypeAndOtpStatusAndExpiresAtAfter(
             String contactInfo,

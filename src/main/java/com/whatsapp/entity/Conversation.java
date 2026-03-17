@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -14,8 +16,7 @@ import java.util.List;
 @Entity
 @Table(name = "conversations", indexes = {
     @Index(name = "idx_conversation_type", columnList = "type"),
-    @Index(name = "idx_conversation_created", columnList = "createdAt"),
-    @Index(name = "idx_conversation_updated", columnList = "lastMessageAt")
+    @Index(name = "idx_conversation_created", columnList = "createdAt")
 })
 @Data
 @Builder
@@ -41,21 +42,22 @@ public class Conversation {
     @Column(name = "group_image_url", length = 500)
     private String groupImageUrl;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ConversationParticipant> participants;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Message> messages;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ConversationSetting> conversationSettings;
-
-    @Column(name = "last_message_at")
-    private LocalDateTime lastMessageAt;
 
     @CreationTimestamp
     @Column(name = "created_at")

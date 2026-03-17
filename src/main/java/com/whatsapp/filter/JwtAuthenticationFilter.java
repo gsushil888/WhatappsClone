@@ -26,56 +26,62 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
-    private final UserSessionRepository userSessionRepository;
+	private final JwtUtil jwtUtil;
+	private final UserSessionRepository userSessionRepository;
 
-    @Override
-    protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain)
-            throws ServletException, IOException {
+	@Override
+	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+			@NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+		String requestUri = request.getRequestURI();
+		String method = request.getMethod();
+		String authHeader = request.getHeader("Authorization");
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            try {
-                String token = authHeader.substring(7);
+		log.info("[JWT-FILTER] {} {} - Auth header present: {}", method, requestUri, authHeader != null);
 
-                if (jwtUtil.validateToken(token)) {
-                    Long userId = jwtUtil.getUserIdFromToken(token);
-                    String sessionId = jwtUtil.getSessionIdFromToken(token);
+		if (authHeader != null && authHeader.startsWith("Bearer ")) {
+			try {
+				String token = authHeader.substring(7);
+				log.info("[JWT-FILTER] Validating token for request: {} {}", method, requestUri);
 
-                    // Validate session is still active
-                    boolean isSessionActive = userSessionRepository.findById(sessionId)
-                            .map(session -> session.getStatus() == UserSession.SessionStatus.ACTIVE)
-                            .orElse(false);
+				if (jwtUtil.validateToken(token)) {
+					Long userId = jwtUtil.getUserIdFromToken(token);
+					String sessionId = jwtUtil.getSessionIdFromToken(token);
 
-                    if (isSessionActive) {
-                        RequestContext.RequestInfo info = RequestContext.getContext();
-                        if (info != null) {
-                            info.setUserId(userId);
-                            info.setSessionId(sessionId);
-                        }
+					log.info("[JWT-FILTER] Token valid - userId: {}, sessionId: {}", userId, sessionId);
 
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                        userId,
-                                        null,
-                                        Collections.singletonList(
-                                                new SimpleGrantedAuthority("ROLE_USER")));
+					boolean isSessionActive = userSessionRepository.findById(sessionId)
+							.map(session -> session.getStatus() == UserSession.SessionStatus.ACTIVE).orElse(false);
 
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    } else {
-                        log.warn("Session {} is not active for user {}", sessionId, userId);
-                    }
-                }
+					if (isSessionActive) {
+						RequestContext.RequestInfo info = RequestContext.getContext();
+						if (info != null) {
+							info.setUserId(userId);
+							info.setSessionId(sessionId);
+						}
 
-            } catch (Exception ex) {
-                log.warn("JWT authentication failed", ex);
-            }
-        }
+						UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+								userId, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
 
-        filterChain.doFilter(request, response);
-    }
+						SecurityContextHolder.getContext().setAuthentication(authentication);
+						log.info("[JWT-FILTER] Authentication successful - userId: {}, sessionId: {}, path: {} {}",
+								userId, sessionId, method, requestUri);
+					} else {
+						log.warn("[JWT-FILTER] Session {} inactive for userId: {}, path: {} {}", sessionId, userId,
+								method, requestUri);
+					}
+				} else {
+					log.warn("[JWT-FILTER] Invalid token for request: {} {}", method, requestUri);
+				}
+
+			} catch (Exception ex) {
+				log.error("[JWT-FILTER] Authentication failed for {} {}: {}", method, requestUri, ex.getMessage());
+			}
+		} else {
+			log.info("[JWT-FILTER] No Bearer token found for: {} {}", method, requestUri);
+		}
+
+		filterChain.doFilter(request, response);
+		log.info("[JWT-FILTER] Request completed: {} {}", method, requestUri);
+	}
 }

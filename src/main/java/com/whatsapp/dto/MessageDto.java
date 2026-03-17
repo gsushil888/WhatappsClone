@@ -21,10 +21,10 @@ public class MessageDto {
     @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class MessageResponse {
-    	@JsonIgnore
         private Long id;
         private Long senderId;
         private String senderName;
+        private String senderMobileNumber;
         private String senderAvatar;
         private String content;
         private String messageType;
@@ -112,6 +112,7 @@ public class MessageDto {
     public static class MessageListResponse {
         private List<MessageResponse> messages;
         private ApiResponse.PaginationInfo pagination;
+        private Long nextCursor; // ID of last message for cursor-based pagination
     }
 
     @Data

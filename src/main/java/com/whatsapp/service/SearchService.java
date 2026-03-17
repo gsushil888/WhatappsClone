@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -37,27 +38,27 @@ public class SearchService {
 			List<Contact> contacts = searchRepository.searchContacts(userId, query, pageable);
 			log.debug("Found {} contacts for query: '{}'", contacts.size(), query);
 			responseBuilder
-					.contacts(contacts.stream().map(this::mapToContactSearchResult).collect(Collectors.toList()));
+					.contacts(contacts.stream().map(c -> mapToContactSearchResult(c, userId)).collect(Collectors.toList()));
 		}
 
 		if ("all".equals(type) || "chats".equals(type)) {
 			List<Conversation> conversations = searchRepository.searchConversations(userId, query, pageable);
 			log.debug("Found {} conversations for query: '{}'", conversations.size(), query);
 			responseBuilder.conversations(
-					conversations.stream().map(this::mapToConversationSearchResult).collect(Collectors.toList()));
+					conversations.stream().map(c -> mapToConversationSearchResult(c, userId)).collect(Collectors.toList()));
 		}
 
 		if ("all".equals(type) || "messages".equals(type)) {
 			List<Message> messages = searchRepository.searchMessages(userId, query, pageable);
 			log.debug("Found {} messages for query: '{}'", messages.size(), query);
 			responseBuilder
-					.messages(messages.stream().map(this::mapToMessageSearchResult).collect(Collectors.toList()));
+					.messages(messages.stream().map(m -> mapToMessageSearchResult(m, userId)).collect(Collectors.toList()));
 		}
 
 		if ("all".equals(type) || "users".equals(type)) {
 			List<User> users = searchRepository.searchUsers(userId, query, pageable);
 			log.debug("Found {} users for query: '{}'", users.size(), query);
-			responseBuilder.users(users.stream().map(this::mapToUserSearchResult).collect(Collectors.toList()));
+			responseBuilder.users(users.stream().map(u -> mapToUserSearchResult(u, userId)).collect(Collectors.toList()));
 		}
 
 		SearchDto.UniversalSearchResponse response = responseBuilder.build();
@@ -81,7 +82,7 @@ public class SearchService {
 		Pageable pageable = PageRequest.of(0, limit);
 		List<Contact> contacts = searchRepository.searchContacts(userId, query, pageable);
 
-		return contacts.stream().map(this::mapToContactSearchResult).collect(Collectors.toList());
+		return contacts.stream().map(c -> mapToContactSearchResult(c, userId)).collect(Collectors.toList());
 	}
 
 	@Transactional(readOnly = true)
@@ -89,7 +90,7 @@ public class SearchService {
 		Pageable pageable = PageRequest.of(0, limit);
 		List<Conversation> conversations = searchRepository.searchConversations(userId, query, pageable);
 
-		return conversations.stream().map(this::mapToConversationSearchResult).collect(Collectors.toList());
+		return conversations.stream().map(c -> mapToConversationSearchResult(c, userId)).collect(Collectors.toList());
 	}
 
 	@Transactional(readOnly = true)
@@ -97,7 +98,7 @@ public class SearchService {
 		Pageable pageable = PageRequest.of(0, limit);
 		List<Message> messages = searchRepository.searchMessages(userId, query, pageable);
 
-		return messages.stream().map(this::mapToMessageSearchResult).collect(Collectors.toList());
+		return messages.stream().map(m -> mapToMessageSearchResult(m, userId)).collect(Collectors.toList());
 	}
 
 	@Transactional(readOnly = true)
@@ -105,42 +106,54 @@ public class SearchService {
 		Pageable pageable = PageRequest.of(0, limit);
 		List<User> users = searchRepository.searchUsers(userId, query, pageable);
 
-		return users.stream().map(this::mapToUserSearchResult).collect(Collectors.toList());
+		return users.stream().map(u -> mapToUserSearchResult(u, userId)).collect(Collectors.toList());
 	}
 
-	private SearchDto.ContactSearchResult mapToContactSearchResult(Contact contact) {
+	private SearchDto.ContactSearchResult mapToContactSearchResult(Contact contact, Long currentUserId) {
+		String displayName = getDisplayName(currentUserId, contact.getContactUser());
 		return SearchDto.ContactSearchResult.builder().id(contact.getId()).type("CONTACT")
 				.contactUser(SearchDto.ContactUser.builder().id(contact.getContactUser().getId())
-						.displayName(contact.getContactUser().getDisplayName())
+						.displayName(displayName)
 						.profilePictureUrl(contact.getContactUser().getProfilePictureUrl())
 						.isOnline(contact.getContactUser().isOnline()).build())
 				.displayName(contact.getDisplayName()).matchedField("displayName").build();
 	}
 
-	private SearchDto.ConversationSearchResult mapToConversationSearchResult(Conversation conversation) {
+	private SearchDto.ConversationSearchResult mapToConversationSearchResult(Conversation conversation, Long currentUserId) {
 		return SearchDto.ConversationSearchResult.builder().id(conversation.getId()).type("CONVERSATION")
 				.name(conversation.getName()).profileImageUrl(conversation.getGroupImageUrl())
 				.conversationType(conversation.getType().name())
-				.lastMessage(conversation.getLastMessageAt() != null ? SearchDto.LastMessage.builder()
-						.content("Last message").timestamp(conversation.getLastMessageAt()).build() : null)
 				.matchedField("name").build();
 	}
 
-	private SearchDto.MessageSearchResult mapToMessageSearchResult(Message message) {
+	private SearchDto.MessageSearchResult mapToMessageSearchResult(Message message, Long currentUserId) {
+		String senderDisplayName = getDisplayName(currentUserId, message.getSender());
 		return SearchDto.MessageSearchResult.builder().id(message.getId()).type("MESSAGE").content(message.getContent())
-				.timestamp(message.getTimestamp())
+				.timestamp(message.getCreatedAt())
 				.conversation(SearchDto.MessageConversation.builder().id(message.getConversation().getId())
 						.name(message.getConversation().getName()).type(message.getConversation().getType().name())
 						.build())
 				.sender(SearchDto.MessageSender.builder().id(message.getSender().getId())
-						.displayName(message.getSender().getDisplayName()).build())
+						.displayName(senderDisplayName).build())
 				.matchedField("content").build();
 	}
 
-	private SearchDto.UserSearchResult mapToUserSearchResult(User user) {
+	private SearchDto.UserSearchResult mapToUserSearchResult(User user, Long currentUserId) {
+		String displayName = getDisplayName(currentUserId, user);
 		return SearchDto.UserSearchResult.builder().id(user.getId()).type("USER").username(user.getUsername())
-				.displayName(user.getDisplayName()).profilePictureUrl(user.getProfilePictureUrl())
+				.displayName(displayName).profilePictureUrl(user.getProfilePictureUrl())
 				.isOnline(user.isOnline()).accountType(user.getAccountType().name()).matchedField("displayName")
 				.build();
+	}
+
+	private String getDisplayName(Long currentUserId, User targetUser) {
+		Optional<Contact> contact = contactRepository
+				.findByUserIdAndContactUserId(currentUserId, targetUser.getId());
+		if (contact.isPresent()) {
+			return contact.get().getDisplayName();
+		}
+		String userDisplayName = targetUser.getDisplayName();
+		return (userDisplayName != null && !userDisplayName.trim().isEmpty()) 
+				? userDisplayName : targetUser.getPhoneNumber();
 	}
 }

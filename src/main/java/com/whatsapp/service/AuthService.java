@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,6 +43,49 @@ public class AuthService {
 	private final SessionService sessionService;
 	private final LoginStrategyFactory loginStrategyFactory;
 	private final SessionHandler sessionHandler;
+	
+	@Transactional(readOnly = true)
+	public AuthDto.SessionValidationResponse validateSession(Long userId, String sessionId) {
+		try {
+			log.info("[SERVICE] Session validation for user: {}, session: {}", userId, sessionId);
+
+			if (sessionId == null) {
+				return AuthDto.SessionValidationResponse.builder().valid(false).message("No session found").build();
+			}
+
+			Optional<UserSession> sessionOpt = userSessionRepository.findById(sessionId);
+
+			if (sessionOpt.isEmpty()) {
+				return AuthDto.SessionValidationResponse.builder().valid(false).message("Session not found").build();
+			}
+
+			UserSession session = sessionOpt.get();
+
+			if (!Objects.equals(session.getUser().getId(), userId)) {
+				return AuthDto.SessionValidationResponse.builder().valid(false)
+						.message("Session does not belong to user").build();
+			}
+
+			if (session.getStatus() != UserSession.SessionStatus.ACTIVE) {
+				return AuthDto.SessionValidationResponse.builder().valid(false).userId(userId)
+						.message("Session is " + session.getStatus().name().toLowerCase()).build();
+			}
+
+			if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
+				return AuthDto.SessionValidationResponse.builder().valid(false).userId(userId)
+						.expiresAt(session.getExpiresAt()).message("Session expired").build();
+			}
+
+			return AuthDto.SessionValidationResponse.builder().valid(true).userId(userId)
+					.expiresAt(session.getExpiresAt()).deviceType(session.getDeviceType()).message("Session is valid")
+					.build();
+
+		} catch (Exception e) {
+			log.error("[SERVICE] Error validating session", e);
+			return AuthDto.SessionValidationResponse.builder().valid(false).message("Session validation failed")
+					.build();
+		}
+	}
 
 	@Transactional
 	public AuthDto.RegisterResponse register(AuthDto.RegisterRequest request, MultipartFile profilePicture) {
@@ -123,8 +167,12 @@ public class AuthService {
 		String otpCode = otpService.generateOtp(tempSessionId, oldOtp.getContactInfo(), oldOtp.getOtpType());
 		emailService.sendOtpEmail(oldOtp.getContactInfo(), otpCode, user.getDisplayName());
 
+		String maskedContact = oldOtp.getContactInfo().contains("@") 
+				? maskEmail(oldOtp.getContactInfo()) 
+				: maskPhone(oldOtp.getContactInfo());
+
 		return AuthDto.RegisterResponse.builder().tempSessionId(tempSessionId)
-				.otpSentTo(maskEmail(oldOtp.getContactInfo())).expiresIn(60)
+				.otpSentTo(maskedContact).expiresIn(60)
 				.expiresAt(LocalDateTime.now().plusMinutes(1)).resendAvailableIn(60).username(user.getUsername())
 				.build();
 	}
@@ -362,7 +410,9 @@ public class AuthService {
 	}
 
 	private String maskEmail(String email) {
+		if (email == null || email.isEmpty()) return "***";
 		int atIndex = email.indexOf('@');
+		if (atIndex <= 0) return "***";
 		return atIndex > 2 ? email.substring(0, 2) + "***" + email.substring(atIndex)
 				: "***" + email.substring(atIndex);
 	}

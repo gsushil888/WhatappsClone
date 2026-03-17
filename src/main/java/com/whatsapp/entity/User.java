@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -19,6 +21,7 @@ import java.util.List;
     @Index(name = "idx_user_status", columnList = "status"),
     @Index(name = "idx_user_online", columnList = "isOnline")
 })
+@NamedEntityGraph(name = "User.basic", attributeNodes = {})
 @Data
 @Builder
 @NoArgsConstructor
@@ -80,21 +83,27 @@ public class User {
     @Builder.Default
     private boolean twoFactorEnabled = false;
 
+    @ToString.Exclude
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private PrivacySettings privacySettings;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<UserSession> sessions;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Contact> contacts;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ConversationParticipant> conversationParticipants;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Message> sentMessages;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Story> stories;
 

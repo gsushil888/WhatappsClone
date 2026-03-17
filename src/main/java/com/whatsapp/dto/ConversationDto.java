@@ -25,14 +25,18 @@ public class ConversationDto {
 		private Long id;
 		private String title;
 		private String type;
-		private LocalDateTime lastMessageAt;
 		private LastMessageDto lastMessage;
 		private Integer unreadCount;
 		private Boolean isPinned;
 		private Boolean isMuted;
 		private Boolean isArchived;
-		private String groupPictureUrl;
+		private Boolean isFavorite;
+		@JsonInclude(JsonInclude.Include.ALWAYS)
+		private String profileImageUrl;
+		private String mobileNumber;
 		private List<ParticipantDto> participants;
+		private Boolean isOnline;
+		private LocalDateTime lastActiveAt;
 		private LocalDateTime createdAt;
 	}
 
@@ -71,7 +75,6 @@ public class ConversationDto {
 
 		private Long participantId; // For individual chats
 
-		@NotEmpty(message = "Participant IDs are required for group chats")
 		private List<Long> participantIds; // For group chats
 
 		@Size(max = 255, message = "Title cannot exceed 255 characters")
@@ -121,6 +124,7 @@ public class ConversationDto {
 
 		private Long userId;
 		private String displayName;
+		private String mobileNumber;
 		private String profilePictureUrl;
 		private String participantRole;
 		private String customName;
@@ -154,6 +158,25 @@ public class ConversationDto {
 		private ConversationSettingsDto settings;
 		private LocalDateTime createdAt;
 		private UserDto createdBy;
+		private String mobileNumber;
+		private Integer participantCount;
+		private List<MediaDto> media;
+	}
+
+	@Data
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	public static class MediaDto {
+		private Long messageId;
+		private String type;
+		private String url;
+		private String thumbnailUrl;
+		private String fileName;
+		private Long fileSize;
+		private LocalDateTime timestamp;
+		private MessageSenderDto sender;
 	}
 
 	@Data
@@ -165,6 +188,7 @@ public class ConversationDto {
 		private Boolean isMuted;
 		private Boolean isPinned;
 		private Boolean isArchived;
+		private Boolean isFavorite;
 		private LocalDateTime muteUntil;
 		private Boolean onlyAdminsCanSend;
 		private Boolean onlyAdminsCanEditInfo;
@@ -238,5 +262,16 @@ public class ConversationDto {
 	public static class MuteConversationResponse {
 		private Boolean isMuted;
 		private LocalDateTime muteUntil;
+	}
+
+	@Data
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	public static class DeleteConversationResponse {
+		private Long conversationId;
+		private Integer deletedMessagesCount;
+		private LocalDateTime deletedAt;
 	}
 }

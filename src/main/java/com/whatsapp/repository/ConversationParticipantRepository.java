@@ -26,9 +26,15 @@ public interface ConversationParticipantRepository extends JpaRepository<Convers
                                                                 @Param("status") ConversationParticipant.ParticipantStatus status);
 
     @Query("SELECT cp FROM ConversationParticipant cp " +
-           "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId AND cp.status = 'ACTIVE'")
-    Optional<ConversationParticipant> findByConversationIdAndUserId(@Param("conversationId") Long conversationId, 
+           "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId AND cp.status = 'ACTIVE' " +
+           "ORDER BY cp.joinedAt DESC")
+    List<ConversationParticipant> findAllByConversationIdAndUserId(@Param("conversationId") Long conversationId, 
                                                                    @Param("userId") Long userId);
+    
+    default Optional<ConversationParticipant> findByConversationIdAndUserId(Long conversationId, Long userId) {
+        List<ConversationParticipant> participants = findAllByConversationIdAndUserId(conversationId, userId);
+        return participants.isEmpty() ? Optional.empty() : Optional.of(participants.get(0));
+    }
 
     @Query("SELECT COUNT(cp) FROM ConversationParticipant cp " +
            "WHERE cp.conversation.id = :conversationId AND cp.status = 'ACTIVE'")
@@ -48,4 +54,6 @@ public interface ConversationParticipantRepository extends JpaRepository<Convers
     @Query("UPDATE ConversationParticipant cp SET cp.status = 'LEFT', cp.leftAt = CURRENT_TIMESTAMP " +
            "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId")
     int leaveConversation(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
+
+    void deleteByConversationId(Long conversationId);
 }

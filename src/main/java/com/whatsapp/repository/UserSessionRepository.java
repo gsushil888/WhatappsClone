@@ -46,6 +46,25 @@ public interface UserSessionRepository extends JpaRepository<UserSession, String
                      @Param("now") LocalDateTime now);
 
        @Modifying
+       @Query("UPDATE UserSession s SET s.jwtToken = :accessToken, s.refreshToken = :refreshToken, " +
+              "s.lastActivityAt = :now, s.ipAddress = :ipAddress, s.userAgent = :userAgent, s.updatedAt = :now " +
+              "WHERE s.id = :sessionId")
+       void updateSessionTokens(@Param("sessionId") String sessionId,
+                               @Param("accessToken") String accessToken,
+                               @Param("refreshToken") String refreshToken,
+                               @Param("now") LocalDateTime now,
+                               @Param("ipAddress") String ipAddress,
+                               @Param("userAgent") String userAgent);
+
+       @Modifying
+       @Query("UPDATE User u SET u.isOnline = :isOnline, u.lastSeenAt = :lastSeenAt, u.lastActiveAt = :lastActiveAt " +
+              "WHERE u.id = :userId")
+       void updateUserPresence(@Param("userId") Long userId,
+                              @Param("isOnline") boolean isOnline,
+                              @Param("lastSeenAt") LocalDateTime lastSeenAt,
+                              @Param("lastActiveAt") LocalDateTime lastActiveAt);
+
+       @Modifying
        @Query("UPDATE UserSession s SET s.lastActivityAt = :now, s.updatedAt = :now " +
                      "WHERE s.id = :sessionId")
        void updateLastActivity(@Param("sessionId") String sessionId, @Param("now") LocalDateTime now);
