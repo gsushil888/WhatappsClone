@@ -4,6 +4,7 @@
 logs/
 _documentations/
 *.md
+*.sql
 
 ## Springbot ##
 application-*.yml
