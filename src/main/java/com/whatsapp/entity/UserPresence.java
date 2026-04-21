@@ -17,28 +17,28 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class UserPresence {
 
-    @Id
-    private Long userId;
+  @Id
+  private Long userId;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id")
+  private User user;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private Status status = Status.OFFLINE;
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private Status status = Status.OFFLINE;
 
-    @UpdateTimestamp
-    private LocalDateTime lastSeen;
+  @UpdateTimestamp
+  private LocalDateTime lastSeen;
 
-    private LocalDateTime lastOnline;
-    
-    private String deviceInfo;
-    
-    @Builder.Default
-    private boolean showLastSeen = true;
+  private LocalDateTime lastOnline;
 
-    public enum Status {
-        ONLINE, OFFLINE, AWAY, BUSY
-    }
+  private String deviceInfo;
+
+  @Builder.Default
+  private boolean showLastSeen = true;
+
+  public enum Status {
+    ONLINE, OFFLINE, AWAY, BUSY
+  }
 }

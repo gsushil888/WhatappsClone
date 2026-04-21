@@ -13,14 +13,14 @@ import java.util.Optional;
 @Repository
 public interface UserPresenceRepository extends JpaRepository<UserPresence, Long> {
 
-    Optional<UserPresence> findByUserId(Long userId);
+  Optional<UserPresence> findByUserId(Long userId);
 
-    @Query("SELECT p FROM UserPresence p WHERE p.status = 'ONLINE'")
-    List<UserPresence> findOnlineUsers();
+  @Query("SELECT p FROM UserPresence p WHERE p.status = 'ONLINE'")
+  List<UserPresence> findOnlineUsers();
 
-    @Query("SELECT p FROM UserPresence p WHERE p.lastSeen < :threshold")
-    List<UserPresence> findUsersOfflineSince(@Param("threshold") LocalDateTime threshold);
+  @Query("SELECT p FROM UserPresence p WHERE p.lastSeen < :threshold")
+  List<UserPresence> findUsersOfflineSince(@Param("threshold") LocalDateTime threshold);
 
-    @Query("SELECT COUNT(p) FROM UserPresence p WHERE p.status = 'ONLINE'")
-    long countOnlineUsers();
+  @Query("SELECT COUNT(p) FROM UserPresence p WHERE p.status = 'ONLINE'")
+  long countOnlineUsers();
 }

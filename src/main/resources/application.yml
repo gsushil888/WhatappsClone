@@ -72,7 +72,7 @@ app:
   version: 1.0.0
   base-url: ${APP_BASE_URL:http://localhost:8080}
   redis:
-    enabled: ${REDIS_ENABLED:false}
+    enabled: ${REDIS_ENABLED:true}
   otp:
     ttl: ${OTP_TTL:5m}
     resend-wait: ${OTP_RESEND_WAIT:1m}

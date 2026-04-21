@@ -5,20 +5,22 @@ import lombok.Getter;
 
 @Getter
 public class ContactException extends RuntimeException {
-    private final ErrorCode errorCode;
 
-    public ContactException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
-    }
+  private static final long serialVersionUID = 1L;
+  private final ErrorCode errorCode;
 
-    public ContactException(ErrorCode errorCode, String message) {
-        super(message);
-        this.errorCode = errorCode;
-    }
+  public ContactException(ErrorCode errorCode) {
+    super(errorCode.getMessage());
+    this.errorCode = errorCode;
+  }
 
-    public ContactException(ErrorCode errorCode, Throwable cause) {
-        super(errorCode.getMessage(), cause);
-        this.errorCode = errorCode;
-    }
+  public ContactException(ErrorCode errorCode, String message) {
+    super(message);
+    this.errorCode = errorCode;
+  }
+
+  public ContactException(ErrorCode errorCode, Throwable cause) {
+    super(errorCode.getMessage(), cause);
+    this.errorCode = errorCode;
+  }
 }

@@ -5,20 +5,21 @@ import lombok.Getter;
 
 @Getter
 public class MessageException extends RuntimeException {
-    private final ErrorCode errorCode;
+  private static final long serialVersionUID = 1L;
+  private final ErrorCode errorCode;
 
-    public MessageException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
-        this.errorCode = errorCode;
-    }
+  public MessageException(ErrorCode errorCode) {
+    super(errorCode.getMessage());
+    this.errorCode = errorCode;
+  }
 
-    public MessageException(ErrorCode errorCode, String message) {
-        super(message);
-        this.errorCode = errorCode;
-    }
+  public MessageException(ErrorCode errorCode, String message) {
+    super(message);
+    this.errorCode = errorCode;
+  }
 
-    public MessageException(ErrorCode errorCode, Throwable cause) {
-        super(errorCode.getMessage(), cause);
-        this.errorCode = errorCode;
-    }
+  public MessageException(ErrorCode errorCode, Throwable cause) {
+    super(errorCode.getMessage(), cause);
+    this.errorCode = errorCode;
+  }
 }

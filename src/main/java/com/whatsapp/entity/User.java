@@ -14,13 +14,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "users", indexes = {
-    @Index(name = "idx_user_email", columnList = "email"),
-    @Index(name = "idx_user_phone", columnList = "phoneNumber"),
-    @Index(name = "idx_user_username", columnList = "username"),
-    @Index(name = "idx_user_status", columnList = "status"),
-    @Index(name = "idx_user_online", columnList = "isOnline")
-})
+@Table(name = "users",
+    indexes = {@Index(name = "idx_user_email", columnList = "email"),
+        @Index(name = "idx_user_phone", columnList = "phoneNumber"),
+        @Index(name = "idx_user_username", columnList = "username"),
+        @Index(name = "idx_user_status", columnList = "status"),
+        @Index(name = "idx_user_online", columnList = "isOnline")})
 @NamedEntityGraph(name = "User.basic", attributeNodes = {})
 @Data
 @Builder
@@ -28,91 +27,96 @@ import java.util.List;
 @AllArgsConstructor
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(unique = true, length = 50)
-    private String username;
+  @Column(unique = true, length = 50)
+  private String username;
 
-    @Column(unique = true, length = 100)
-    private String email;
+  @Column(unique = true, length = 100)
+  private String email;
 
-    @Column(unique = true, length = 20)
-    private String phoneNumber;
+  @Column(unique = true, length = 20)
+  private String phoneNumber;
 
-    private String password;
+  private String password;
 
-    private String firstName;
+  private String firstName;
 
-    private String lastName;
+  private String lastName;
 
-    @Column(length = 100)
-    private String displayName;
+  @Column(length = 100)
+  private String displayName;
 
-    @Column(length = 500)
-    private String profilePictureUrl;
+  @Column(length = 500)
+  private String profilePictureUrl;
 
-    @Column(length = 500)
-    private String aboutText;
+  @Column(length = 500)
+  private String aboutText;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private UserStatus status = UserStatus.ACTIVE;
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private UserStatus status = UserStatus.ACTIVE;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private AccountType accountType = AccountType.PERSONAL;
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private AccountType accountType = AccountType.PERSONAL;
 
-    @Builder.Default
-    private boolean isOnline = false;
+  @Builder.Default
+  private boolean isOnline = false;
 
-    private LocalDateTime lastSeenAt;
-    
-    private LocalDateTime lastActiveAt;
+  private LocalDateTime lastSeenAt;
 
-    @Builder.Default
-    private boolean isVerified = false;
+  private LocalDateTime lastActiveAt;
 
-    @Builder.Default
-    private boolean emailVerified = false;
+  @Builder.Default
+  private boolean isVerified = false;
 
-    @Builder.Default
-    private boolean phoneVerified = false;
+  @Builder.Default
+  private boolean emailVerified = false;
 
-    @Builder.Default
-    private boolean twoFactorEnabled = false;
+  @Builder.Default
+  private boolean phoneVerified = false;
 
-    @ToString.Exclude
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-    private PrivacySettings privacySettings;
+  @Builder.Default
+  private boolean twoFactorEnabled = false;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<UserSession> sessions;
+  @ToString.Exclude
+  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY,
+      orphanRemoval = true)
+  private PrivacySettings privacySettings;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Contact> contacts;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<UserSession> sessions;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<ConversationParticipant> conversationParticipants;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Contact> contacts;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Message> sentMessages;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<ConversationParticipant> conversationParticipants;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Story> stories;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Message> sentMessages;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Story> stories;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+  @CreationTimestamp
+  private LocalDateTime createdAt;
 
-    public enum UserStatus { ACTIVE, INACTIVE, SUSPENDED, DELETED }
-    public enum AccountType { PERSONAL, BUSINESS }
+  @UpdateTimestamp
+  private LocalDateTime updatedAt;
+
+  public enum UserStatus {
+    ACTIVE, INACTIVE, SUSPENDED, DELETED
+  }
+  public enum AccountType {
+    PERSONAL, BUSINESS
+  }
 }

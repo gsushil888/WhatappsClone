@@ -17,29 +17,29 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CallParticipant {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "call_id", nullable = false)
-    private Call call;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "call_id", nullable = false)
+  private Call call;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", nullable = false)
+  private User user;
 
-    @Enumerated(EnumType.STRING)
-    private CallParticipantStatus status;
+  @Enumerated(EnumType.STRING)
+  private CallParticipantStatus status;
 
-    private LocalDateTime joinedAt;
-    private LocalDateTime leftAt;
-    private Integer duration;
+  private LocalDateTime joinedAt;
+  private LocalDateTime leftAt;
+  private Integer duration;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+  @CreationTimestamp
+  private LocalDateTime createdAt;
 
-    public enum CallParticipantStatus {
-        INVITED, JOINED, LEFT, DECLINED
-    }
+  public enum CallParticipantStatus {
+    INVITED, JOINED, LEFT, DECLINED
+  }
 }

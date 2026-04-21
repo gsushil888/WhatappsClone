@@ -11,14 +11,14 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class PresenceScheduler {
 
-    private final PresenceService presenceService;
+  private final PresenceService presenceService;
 
-    @Scheduled(fixedRate = 30000) // Every 30 seconds
-    public void cleanupOfflineUsers() {
-        try {
-            presenceService.cleanupOfflineUsers();
-        } catch (Exception e) {
-            log.error("Error during presence cleanup: ", e);
-        }
+  @Scheduled(fixedRate = 30000) // Every 30 seconds
+  public void cleanupOfflineUsers() {
+    try {
+      presenceService.cleanupOfflineUsers();
+    } catch (Exception e) {
+      log.error("Error during presence cleanup: ", e);
     }
+  }
 }

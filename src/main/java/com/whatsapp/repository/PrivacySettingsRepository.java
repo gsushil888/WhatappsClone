@@ -8,5 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface PrivacySettingsRepository extends JpaRepository<PrivacySettings, Long> {
-    Optional<PrivacySettings> findByUserId(Long userId);
+  Optional<PrivacySettings> findByUserId(Long userId);
 }

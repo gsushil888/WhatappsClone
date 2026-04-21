@@ -19,43 +19,47 @@ import java.util.List;
 @AllArgsConstructor
 public class Call {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "conversation_id")
-    private Conversation conversation;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "conversation_id")
+  private Conversation conversation;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "caller_id", nullable = false)
-    private User caller;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "caller_id", nullable = false)
+  private User caller;
 
-    @Enumerated(EnumType.STRING)
-    private CallType type;
+  @Enumerated(EnumType.STRING)
+  private CallType type;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private CallStatus status = CallStatus.INITIATED;
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private CallStatus status = CallStatus.INITIATED;
 
-    private String callToken;
-    private LocalDateTime startedAt;
-    private LocalDateTime answeredAt;
-    private LocalDateTime endedAt;
-    private Integer durationSeconds;
-    private String endReason;
-    private Integer qualityRating;
-    private String metadata;
+  private String callToken;
+  private LocalDateTime startedAt;
+  private LocalDateTime answeredAt;
+  private LocalDateTime endedAt;
+  private Integer durationSeconds;
+  private String endReason;
+  private Integer qualityRating;
+  private String metadata;
 
-    @OneToMany(mappedBy = "call", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<CallParticipant> participants;
+  @OneToMany(mappedBy = "call", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<CallParticipant> participants;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+  @CreationTimestamp
+  private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+  @UpdateTimestamp
+  private LocalDateTime updatedAt;
 
-    public enum CallType { VOICE, VIDEO }
-    public enum CallStatus { INITIATED, RINGING, ANSWERED, ENDED, DECLINED, MISSED, FAILED }
+  public enum CallType {
+    VOICE, VIDEO
+  }
+  public enum CallStatus {
+    INITIATED, RINGING, ANSWERED, ENDED, DECLINED, MISSED, FAILED
+  }
 }
