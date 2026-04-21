@@ -14,58 +14,59 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "conversations", indexes = {
-    @Index(name = "idx_conversation_type", columnList = "type"),
-    @Index(name = "idx_conversation_created", columnList = "createdAt")
-})
+@Table(name = "conversations",
+    indexes = {@Index(name = "idx_conversation_type", columnList = "type"),
+        @Index(name = "idx_conversation_created", columnList = "createdAt")})
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Conversation {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "id")
+  private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type")
-    private ConversationType type;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "type")
+  private ConversationType type;
 
-    @Column(name = "name", length = 100)
-    private String name;
+  @Column(name = "name", length = 100)
+  private String name;
 
-    @Column(name = "description", length = 500)
-    private String description;
+  @Column(name = "description", length = 500)
+  private String description;
 
-    @Column(name = "group_image_url", length = 500)
-    private String groupImageUrl;
+  @Column(name = "group_image_url", length = 500)
+  private String groupImageUrl;
 
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private User createdBy;
+  @ToString.Exclude
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "created_by")
+  private User createdBy;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<ConversationParticipant> participants;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<ConversationParticipant> participants;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Message> messages;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Message> messages;
 
-    @ToString.Exclude
-    @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<ConversationSetting> conversationSettings;
+  @ToString.Exclude
+  @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<ConversationSetting> conversationSettings;
 
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+  @UpdateTimestamp
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 
-    public enum ConversationType { INDIVIDUAL, GROUP, BROADCAST }
+  public enum ConversationType {
+    INDIVIDUAL, GROUP, BROADCAST
+  }
 }

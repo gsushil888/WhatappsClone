@@ -11,76 +11,79 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_sessions", indexes = {
-    @Index(name = "idx_session_user", columnList = "userId"),
-    @Index(name = "idx_session_status", columnList = "status"),
-    @Index(name = "idx_session_device", columnList = "deviceFingerprint"),
-    @Index(name = "idx_session_expires", columnList = "expiresAt")
-})
+@Table(name = "user_sessions",
+    indexes = {@Index(name = "idx_session_user", columnList = "userId"),
+        @Index(name = "idx_session_status", columnList = "status"),
+        @Index(name = "idx_session_device", columnList = "deviceFingerprint"),
+        @Index(name = "idx_session_expires", columnList = "expiresAt")})
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserSession {
 
-    @Id
-    @Column(name = "id", length = 100)
-    private String id;
+  @Id
+  @Column(name = "id", length = 100)
+  private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", nullable = false)
+  private User user;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type")
-    private SessionType type;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "type")
+  private SessionType type;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status")
-    private SessionStatus status;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status")
+  private SessionStatus status;
 
-    @Column(name = "device_fingerprint", length = 255)
-    private String deviceFingerprint;
+  @Column(name = "device_fingerprint", length = 255)
+  private String deviceFingerprint;
 
-    // Device info as separate columns instead of JSON
-    @Column(name = "device_type", length = 50)
-    private String deviceType;
-    
-    @Column(name = "device_os", length = 100)
-    private String deviceOs;
-    
-    @Column(name = "device_browser", length = 100)
-    private String deviceBrowser;
-    
-    @Column(name = "device_model", length = 100)
-    private String deviceModel;
+  // Device info as separate columns instead of JSON
+  @Column(name = "device_type", length = 50)
+  private String deviceType;
 
-    @Column(name = "ip_address", length = 45)
-    private String ipAddress;
+  @Column(name = "device_os", length = 100)
+  private String deviceOs;
 
-    @Column(name = "user_agent", length = 1000)
-    private String userAgent;
+  @Column(name = "device_browser", length = 100)
+  private String deviceBrowser;
 
-    @Column(name = "jwt_token", length = 500)
-    private String jwtToken;
+  @Column(name = "device_model", length = 100)
+  private String deviceModel;
 
-    @Column(name = "refresh_token", length = 500)
-    private String refreshToken;
+  @Column(name = "ip_address", length = 45)
+  private String ipAddress;
 
-    @Column(name = "expires_at")
-    private LocalDateTime expiresAt;
+  @Column(name = "user_agent", length = 1000)
+  private String userAgent;
 
-    @Column(name = "last_activity_at")
-    private LocalDateTime lastActivityAt;
+  @Column(name = "jwt_token", length = 500)
+  private String jwtToken;
 
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+  @Column(name = "refresh_token", length = 500)
+  private String refreshToken;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+  @Column(name = "expires_at")
+  private LocalDateTime expiresAt;
 
-    public enum SessionType { WEB, MOBILE, DESKTOP, TABLET }
-    public enum SessionStatus { ACTIVE, EXPIRED, REVOKED, TEMP }
+  @Column(name = "last_activity_at")
+  private LocalDateTime lastActivityAt;
+
+  @CreationTimestamp
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
+
+  @UpdateTimestamp
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
+
+  public enum SessionType {
+    WEB, MOBILE, DESKTOP, TABLET
+  }
+  public enum SessionStatus {
+    ACTIVE, EXPIRED, REVOKED, TEMP
+  }
 }

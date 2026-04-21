@@ -17,29 +17,29 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class MessageStatus {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "message_id", nullable = false)
-    private Message message;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "message_id", nullable = false)
+  private Message message;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", nullable = false)
+  private User user;
 
-    private Long conversationId; // Denormalized for performance
+  private Long conversationId; // Denormalized for performance
 
-    @Enumerated(EnumType.STRING)
-    private DeliveryStatus status;
+  @Enumerated(EnumType.STRING)
+  private DeliveryStatus status;
 
-    private LocalDateTime timestamp;
+  private LocalDateTime timestamp;
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+  @CreationTimestamp
+  private LocalDateTime createdAt;
 
-    public enum DeliveryStatus {
-        SENT, DELIVERED, READ
-    }
+  public enum DeliveryStatus {
+    SENT, DELIVERED, READ
+  }
 }

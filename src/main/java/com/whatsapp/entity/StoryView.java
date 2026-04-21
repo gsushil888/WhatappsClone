@@ -17,18 +17,18 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class StoryView {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "story_id", nullable = false)
-    private Story story;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "story_id", nullable = false)
+  private Story story;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", nullable = false)
+  private User user;
 
-    @CreationTimestamp
-    private LocalDateTime viewedAt;
+  @CreationTimestamp
+  private LocalDateTime viewedAt;
 }

@@ -13,69 +13,57 @@ import java.util.Optional;
 @Repository
 public interface OtpVerificationRepository extends JpaRepository<OtpVerification, Long> {
 
-    Optional<OtpVerification> findByTempSessionIdAndOtpStatusAndExpiresAtAfter(
-            String tempSessionId, 
-            OtpVerification.OtpStatus status, 
-            LocalDateTime now);
-    
-    @Query("SELECT o FROM OtpVerification o WHERE o.tempSessionId = :tempSessionId " +
-           "ORDER BY o.createdAt DESC LIMIT 1")
-    Optional<OtpVerification> findByTempSessionId(@Param("tempSessionId") String tempSessionId);
+  Optional<OtpVerification> findByTempSessionIdAndOtpStatusAndExpiresAtAfter(String tempSessionId,
+      OtpVerification.OtpStatus status, LocalDateTime now);
 
-    Optional<OtpVerification> findByContactInfoAndOtpTypeAndOtpStatusAndExpiresAtAfter(
-            String contactInfo,
-            OtpVerification.OtpType otpType,
-            OtpVerification.OtpStatus status,
-            LocalDateTime now);
+  @Query("SELECT o FROM OtpVerification o WHERE o.tempSessionId = :tempSessionId "
+      + "ORDER BY o.createdAt DESC LIMIT 1")
+  Optional<OtpVerification> findByTempSessionId(@Param("tempSessionId") String tempSessionId);
 
-    Optional<OtpVerification> findByContactInfoAndOtpTypeAndDeviceFingerprintAndOtpStatusAndExpiresAtAfter(
-            String contactInfo,
-            OtpVerification.OtpType otpType,
-            String deviceFingerprint,
-            OtpVerification.OtpStatus status,
-            LocalDateTime now);
+  Optional<OtpVerification> findByContactInfoAndOtpTypeAndOtpStatusAndExpiresAtAfter(
+      String contactInfo, OtpVerification.OtpType otpType, OtpVerification.OtpStatus status,
+      LocalDateTime now);
 
-    @Query("SELECT o FROM OtpVerification o WHERE o.contactInfo = :contactInfo " +
-           "AND o.otpType = :otpType " +
-           "AND o.otpStatus = :status " +
-           "AND o.expiresAt > :now " +
-           "ORDER BY o.createdAt DESC")
-    Optional<OtpVerification> findLatestByContactInfoAndTypeAndStatus(
-            @Param("contactInfo") String contactInfo,
-            @Param("otpType") OtpVerification.OtpType otpType,
-            @Param("status") OtpVerification.OtpStatus status,
-            @Param("now") LocalDateTime now);
+  Optional<OtpVerification> findByContactInfoAndOtpTypeAndDeviceFingerprintAndOtpStatusAndExpiresAtAfter(
+      String contactInfo, OtpVerification.OtpType otpType, String deviceFingerprint,
+      OtpVerification.OtpStatus status, LocalDateTime now);
 
-    @Modifying
-    @Query("UPDATE OtpVerification o SET o.otpStatus = :status " +
-           "WHERE o.contactInfo = :contactInfo AND o.otpType = :otpType " +
-           "AND o.otpStatus = :currentStatus")
-    void invalidateExistingOtps(@Param("contactInfo") String contactInfo,
-                               @Param("otpType") OtpVerification.OtpType otpType,
-                               @Param("status") OtpVerification.OtpStatus status,
-                               @Param("currentStatus") OtpVerification.OtpStatus currentStatus);
+  @Query("SELECT o FROM OtpVerification o WHERE o.contactInfo = :contactInfo "
+      + "AND o.otpType = :otpType " + "AND o.otpStatus = :status " + "AND o.expiresAt > :now "
+      + "ORDER BY o.createdAt DESC")
+  Optional<OtpVerification> findLatestByContactInfoAndTypeAndStatus(
+      @Param("contactInfo") String contactInfo, @Param("otpType") OtpVerification.OtpType otpType,
+      @Param("status") OtpVerification.OtpStatus status, @Param("now") LocalDateTime now);
 
-    @Modifying
-    @Query("UPDATE OtpVerification o SET o.otpStatus = :status " +
-           "WHERE o.contactInfo = :contactInfo AND o.otpType = :otpType " +
-           "AND o.deviceFingerprint = :deviceFingerprint AND o.otpStatus = :currentStatus")
-    void invalidateOtpsByDevice(@Param("contactInfo") String contactInfo,
-                               @Param("otpType") OtpVerification.OtpType otpType,
-                               @Param("deviceFingerprint") String deviceFingerprint,
-                               @Param("status") OtpVerification.OtpStatus status,
-                               @Param("currentStatus") OtpVerification.OtpStatus currentStatus);
+  @Modifying
+  @Query("UPDATE OtpVerification o SET o.otpStatus = :status "
+      + "WHERE o.contactInfo = :contactInfo AND o.otpType = :otpType "
+      + "AND o.otpStatus = :currentStatus")
+  void invalidateExistingOtps(@Param("contactInfo") String contactInfo,
+      @Param("otpType") OtpVerification.OtpType otpType,
+      @Param("status") OtpVerification.OtpStatus status,
+      @Param("currentStatus") OtpVerification.OtpStatus currentStatus);
 
-    @Modifying
-    @Query("DELETE FROM OtpVerification o WHERE o.expiresAt < :now AND o.otpStatus != :verifiedStatus")
-    void deleteExpiredOtpsExcept(@Param("now") LocalDateTime now, @Param("verifiedStatus") OtpVerification.OtpStatus verifiedStatus);
+  @Modifying
+  @Query("UPDATE OtpVerification o SET o.otpStatus = :status "
+      + "WHERE o.contactInfo = :contactInfo AND o.otpType = :otpType "
+      + "AND o.deviceFingerprint = :deviceFingerprint AND o.otpStatus = :currentStatus")
+  void invalidateOtpsByDevice(@Param("contactInfo") String contactInfo,
+      @Param("otpType") OtpVerification.OtpType otpType,
+      @Param("deviceFingerprint") String deviceFingerprint,
+      @Param("status") OtpVerification.OtpStatus status,
+      @Param("currentStatus") OtpVerification.OtpStatus currentStatus);
 
-    @Modifying
-    void deleteByContactInfoAndOtpType(String contactInfo, OtpVerification.OtpType otpType);
+  @Modifying
+  @Query("DELETE FROM OtpVerification o WHERE o.expiresAt < :now AND o.otpStatus != :verifiedStatus")
+  void deleteExpiredOtpsExcept(@Param("now") LocalDateTime now,
+      @Param("verifiedStatus") OtpVerification.OtpStatus verifiedStatus);
 
-    @Query("SELECT COUNT(o) FROM OtpVerification o WHERE o.contactInfo = :contactInfo " +
-           "AND o.otpType = :otpType " +
-           "AND o.createdAt > :since")
-    long countRecentOtpsByContactInfo(@Param("contactInfo") String contactInfo,
-                                     @Param("otpType") OtpVerification.OtpType otpType,
-                                     @Param("since") LocalDateTime since);
+  @Modifying
+  void deleteByContactInfoAndOtpType(String contactInfo, OtpVerification.OtpType otpType);
+
+  @Query("SELECT COUNT(o) FROM OtpVerification o WHERE o.contactInfo = :contactInfo "
+      + "AND o.otpType = :otpType " + "AND o.createdAt > :since")
+  long countRecentOtpsByContactInfo(@Param("contactInfo") String contactInfo,
+      @Param("otpType") OtpVerification.OtpType otpType, @Param("since") LocalDateTime since);
 }
