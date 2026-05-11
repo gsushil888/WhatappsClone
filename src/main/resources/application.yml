@@ -64,7 +64,7 @@ logging:
 
 jwt:
   secret: ${JWT_SECRET:dGVzdC1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1lbnZpcm9ubWVudC13aXRoLWxvbmctc2VjdXJlLWtleS1mb3ItaHM1MTItYWxnb3JpdGhtLXRoYXQtaXMtc2VjdXJlLWVub3VnaA==}
-  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:900000}
+  access-token-validity: ${JWT_ACCESS_TOKEN_VALIDITY:3600000}
   refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY:3600000}
 
 app:
