@@ -4,6 +4,7 @@ import java.util.Collections;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
@@ -17,30 +18,32 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class WebSocketChannelInterceptor implements ChannelInterceptor {
 
-  @Override
-  public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
-    StompHeaderAccessor accessor =
-        MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+	@Override
+	public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
+		StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-    if (accessor != null && accessor.getSessionAttributes() != null) {
-      Object userId = accessor.getSessionAttributes().get("userId");
+		if (accessor == null || accessor.getCommand() == StompCommand.DISCONNECT
+				|| accessor.getSessionAttributes() == null) {
+			return message;
+		}
 
-      if (userId != null) {
-        UsernamePasswordAuthenticationToken authentication =
-            new UsernamePasswordAuthenticationToken(userId.toString(), null,
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+		if (accessor.getSessionAttributes() != null) {
+			Object userId = accessor.getSessionAttributes().get("userId");
 
-        // Set in both accessor and SecurityContext
-        accessor.setUser(authentication);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+			if (userId != null) {
+				UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+						userId.toString(), null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
 
-        log.debug("WebSocket user authenticated: {} for command: {}", userId,
-            accessor.getCommand());
-      } else {
-        log.warn("No userId found in session attributes for command: {}", accessor.getCommand());
-      }
-    }
+				// Set in both accessor and SecurityContext
+				accessor.setUser(authentication);
+				SecurityContextHolder.getContext().setAuthentication(authentication);
 
-    return message;
-  }
+				log.debug("WebSocket user authenticated: {} for command: {}", userId, accessor.getCommand());
+			} else {
+				log.warn("No userId found in session attributes for command: {}", accessor.getCommand());
+			}
+		}
+
+		return message;
+	}
 }
