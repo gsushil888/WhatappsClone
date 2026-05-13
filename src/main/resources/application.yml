@@ -50,7 +50,7 @@ server:
     include-binding-errors: never
     include-stacktrace: never
     include-exception: false
-
+  address: 0.0.0.0
 logging:
   level:
     com.whatsapp: INFO
@@ -93,7 +93,7 @@ app:
     thumbnail-size: ${THUMBNAIL_SIZE:200}
     compress-images: ${COMPRESS_IMAGES:true}
   websocket:
-    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:8080}
+    allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:8080,*}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS

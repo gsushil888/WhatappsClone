@@ -14,52 +14,66 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 @Slf4j
 public class WebSocketEventListener {
 
-  private final PresenceService presenceService;
+	private final PresenceService presenceService;
 
-  @EventListener
-  public void handleWebSocketConnectListener(SessionConnectedEvent event) {
-    StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
+	@EventListener
+	public void handleWebSocketConnectListener(SessionConnectedEvent event) {
+		StompHeaderAccessor headerAccessor = StompHeaderAccessor
+				.wrap(event.getMessage());
 
-    if (headerAccessor.getSessionAttributes() != null) {
-      Object userIdObj = headerAccessor.getSessionAttributes().get("userId");
-      String deviceInfo = headerAccessor.getFirstNativeHeader("Device-Info");
+		var sessionAttributes = headerAccessor.getSessionAttributes();
+		if (sessionAttributes != null) {
+			Object userIdObj = sessionAttributes.get("userId");
+			String deviceInfo = headerAccessor
+					.getFirstNativeHeader("Device-Info");
 
-      if (userIdObj != null) {
-        String userId = userIdObj.toString();
-        Long userIdLong = Long.parseLong(userId);
-        presenceService.setUserOnline(userIdLong, deviceInfo);
-        log.info("User {} connected via WebSocket", userId);
-      }
-    } else if (headerAccessor.getUser() != null) {
-      String userId = headerAccessor.getUser().getName();
-      if (userId != null) {
-        Long userIdLong = Long.parseLong(userId);
-        presenceService.setUserOnline(userIdLong, null);
-        log.info("User {} connected via WebSocket", userId);
-      }
-    }
-  }
+			if (userIdObj != null) {
+				String userId = userIdObj.toString();
+				Long userIdLong = Long.parseLong(userId);
+				presenceService.setUserOnline(userIdLong, deviceInfo);
+				log.info("User {} connected via WebSocket", userId);
+			}
+		} else {
+			var user = headerAccessor.getUser();
+			if (user != null) {
+				String userId = user.getName();
+				if (userId != null) {
+					Long userIdLong = Long.parseLong(userId);
+					presenceService.setUserOnline(userIdLong, null);
+					log.info("User {} connected via WebSocket", userId);
+				}
+			}
+		}
+	}
 
-  @EventListener
-  public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
-    StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
+	@EventListener
+	public void handleWebSocketDisconnectListener(
+			SessionDisconnectEvent event) {
+		StompHeaderAccessor headerAccessor = StompHeaderAccessor
+				.wrap(event.getMessage());
 
-    String userId = null;
-    if (headerAccessor.getSessionAttributes() != null) {
-      Object userIdObj = headerAccessor.getSessionAttributes().get("userId");
-      if (userIdObj != null) {
-        userId = userIdObj.toString();
-      }
-    } else if (headerAccessor.getUser() != null) {
-      userId = headerAccessor.getUser().getName();
-    }
+		String userId = null;
+		var sessionAttributes = headerAccessor.getSessionAttributes();
+		if (sessionAttributes != null) {
+			Object userIdObj = sessionAttributes.get("userId");
+			if (userIdObj != null) {
+				userId = userIdObj.toString();
+			}
+		} else {
+			var user = headerAccessor.getUser();
+			if (user != null) {
+				userId = user.getName();
+			}
+		}
 
-    if (userId != null) {
-      Long userIdLong = Long.parseLong(userId);
-      presenceService.setUserOffline(userIdLong);
-      log.info("User {} disconnected from WebSocket - set to OFFLINE", userId);
-    } else {
-      log.warn("WebSocket disconnect event but no userId found in session");
-    }
-  }
+		if (userId != null) {
+			Long userIdLong = Long.parseLong(userId);
+			presenceService.setUserOffline(userIdLong);
+			log.info("User {} disconnected from WebSocket - set to OFFLINE",
+					userId);
+		} else {
+			log.warn(
+					"WebSocket disconnect event but no userId found in session");
+		}
+	}
 }

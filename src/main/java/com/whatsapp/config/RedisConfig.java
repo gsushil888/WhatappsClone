@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -26,12 +27,12 @@ public class RedisConfig {
 
 	@Bean
 	RedisConnectionFactory redisConnectionFactory() {
-		LettuceConnectionFactory factory = new LettuceConnectionFactory(redisHost, redisPort);
+		RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redisHost, redisPort);
 		if (!redisPassword.isEmpty()) {
-			factory.setPassword(redisPassword);
+			config.setPassword(redisPassword);
 		}
 		log.info("Redis connection configured for {}:{}", redisHost, redisPort);
-		return factory;
+		return new LettuceConnectionFactory(config);
 	}
 
 	@Bean
