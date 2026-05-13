@@ -19,7 +19,7 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
 
   @Query("SELECT COUNT(ms) FROM MessageStatus ms "
       + "WHERE ms.message.conversation.id = :conversationId " + "AND ms.user.id = :userId "
-      + "AND ms.status = 'DELIVERED' " + "AND ms.message.sender.id != :userId")
+      + "AND ms.status != 'READ' " + "AND ms.message.sender.id != :userId")
   long countUnreadMessages(@Param("conversationId") Long conversationId,
       @Param("userId") Long userId);
 
@@ -38,4 +38,18 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
       @Param("timestamp") LocalDateTime timestamp);
 
   void deleteByMessageId(Long messageId);
+
+  @Modifying
+  @Query("UPDATE MessageStatus ms SET ms.status = 'READ', ms.timestamp = :timestamp "
+      + "WHERE ms.message.conversation.id = :conversationId AND ms.user.id = :userId "
+      + "AND ms.status != 'READ'")
+  int markAllAsRead(@Param("conversationId") Long conversationId,
+      @Param("userId") Long userId,
+      @Param("timestamp") LocalDateTime timestamp);
+
+  @Query("SELECT DISTINCT ms.message.sender.id FROM MessageStatus ms "
+      + "WHERE ms.message.conversation.id = :conversationId AND ms.user.id = :userId "
+      + "AND ms.status != 'READ' AND ms.message.sender.id != :userId")
+  List<Long> findUnreadSenderIds(@Param("conversationId") Long conversationId,
+      @Param("userId") Long userId);
 }

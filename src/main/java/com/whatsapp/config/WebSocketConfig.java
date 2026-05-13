@@ -3,7 +3,6 @@ package com.whatsapp.config;
 import com.whatsapp.interceptor.WebSocketAuthInterceptor;
 import com.whatsapp.interceptor.WebSocketChannelInterceptor;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -20,9 +19,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   private final WebSocketAuthInterceptor webSocketAuthInterceptor;
   private final WebSocketChannelInterceptor webSocketChannelInterceptor;
 
-  @Value("${app.websocket.allowed-origins}")
-  private String[] allowedOrigins;
-
   @Override
   public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
     config.enableSimpleBroker("/topic", "/queue");
@@ -38,19 +34,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   @Override
   public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
     // Main WebSocket endpoint with SockJS
-    registry.addEndpoint("/ws").setAllowedOrigins(allowedOrigins)
+    registry.addEndpoint("/ws").setAllowedOriginPatterns("*")
         .addInterceptors(webSocketAuthInterceptor).withSockJS();
 
     // Main WebSocket endpoint without SockJS
-    registry.addEndpoint("/ws").setAllowedOrigins(allowedOrigins)
+    registry.addEndpoint("/ws").setAllowedOriginPatterns("*")
         .addInterceptors(webSocketAuthInterceptor);
 
     // STOMP WebSocket endpoint with SockJS
-    registry.addEndpoint("/ws/stomp").setAllowedOrigins(allowedOrigins)
+    registry.addEndpoint("/ws/stomp").setAllowedOriginPatterns("*")
         .addInterceptors(webSocketAuthInterceptor).withSockJS();
 
     // STOMP WebSocket endpoint without SockJS
-    registry.addEndpoint("/ws/stomp").setAllowedOrigins(allowedOrigins)
+    registry.addEndpoint("/ws/stomp").setAllowedOriginPatterns("*")
         .addInterceptors(webSocketAuthInterceptor);
   }
 }

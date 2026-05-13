@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -36,9 +35,8 @@ public class MessageService {
 
 	@Transactional(readOnly = true)
 	public MessageDto.MessageListResponse getMessages(Long userId,
-			Long conversationId, int limit, Long beforeMessageId,
-			Long afterMessageId, Map<String, String> deviceInfo,
-			Map<String, String> headers) {
+			Long conversationId, int limit, Long beforeMessageId, Long afterMessageId,
+			Map<String, String> deviceInfo, Map<String, String> headers) {
 
 		conversationParticipantRepository
 				.findByConversationIdAndUserId(conversationId, userId)
@@ -47,39 +45,37 @@ public class MessageService {
 
 		Pageable pageable = PageRequest.of(0, limit);
 		List<Message> messages;
-
+		
 		if (beforeMessageId != null) {
 			// Scroll up - get older messages
-			messages = messageRepository.findMessagesBeforeId(conversationId,
-					beforeMessageId, pageable);
+			messages = messageRepository.findMessagesBeforeId(conversationId, beforeMessageId, pageable);
 		} else if (afterMessageId != null) {
 			// Scroll down - get newer messages
-			messages = messageRepository.findMessagesAfterId(conversationId,
-					afterMessageId, pageable);
+			messages = messageRepository.findMessagesAfterId(conversationId, afterMessageId, pageable);
 		} else {
 			// Initial load - get latest messages
-			messages = messageRepository
-					.findByConversationIdOrderByTimestampDesc(conversationId,
-							pageable);
+			messages = messageRepository.findByConversationIdOrderByTimestampDesc(conversationId, pageable);
 		}
 
 		List<MessageDto.MessageResponse> messageResponses = messages.stream()
-				.map(msg -> mapToMessageResponse(msg, userId))
-				.collect(Collectors.toList());
+				.map(msg -> mapToMessageResponse(msg, userId)).collect(Collectors.toList());
 
-		long totalCount = messageRepository
-				.countByConversationId(conversationId);
-
+		long totalCount = messageRepository.countByConversationId(conversationId);
+		
 		boolean hasMore = messageResponses.size() == limit;
-		Long nextCursor = hasMore && !messageResponses.isEmpty()
-				? messageResponses.get(messageResponses.size() - 1).getId()
+		Long nextCursor = hasMore && !messageResponses.isEmpty() 
+				? messageResponses.get(messageResponses.size() - 1).getId() 
 				: null;
 
 		return MessageDto.MessageListResponse.builder()
 				.messages(messageResponses)
-				.pagination(ApiResponse.PaginationInfo.builder().limit(limit)
-						.total((int) totalCount).hasNext(hasMore).build())
-				.nextCursor(nextCursor).build();
+				.pagination(ApiResponse.PaginationInfo.builder()
+						.limit(limit)
+						.total((int) totalCount)
+						.hasNext(hasMore)
+						.build())
+				.nextCursor(nextCursor)
+				.build();
 	}
 
 	@Transactional
@@ -106,11 +102,11 @@ public class MessageService {
 				.sender(sender)
 				.type(Message.MessageType
 						.valueOf(request.getMessageType().toUpperCase()))
-				.content(request.getContent()).replyToMessage(replyToMessage)
+				.content(request.getContent())
+				.replyToMessage(replyToMessage)
 				.build();
 
 		message = messageRepository.save(message);
-		messageStatusRepository.createStatusForParticipants(message.getId());
 
 		// Handle media attachment if present
 		if (request.getMediaUrl() != null && !request.getMediaUrl().isEmpty()) {
@@ -118,27 +114,13 @@ public class MessageService {
 					.message(message)
 					.type(mapMessageTypeToAttachmentType(message.getType()))
 					.fileUrl(request.getMediaUrl())
-					.fileName(request.getMediaMetadata() != null
-							? request.getMediaMetadata().getFileName()
-							: null)
-					.fileSize(request.getMediaMetadata() != null
-							? request.getMediaMetadata().getSize()
-							: null)
-					.mimeType(request.getMediaMetadata() != null
-							? request.getMediaMetadata().getMimeType()
-							: null)
-					.width(request.getMediaMetadata() != null
-							? request.getMediaMetadata().getWidth()
-							: null)
-					.height(request.getMediaMetadata() != null
-							? request.getMediaMetadata().getHeight()
-							: null)
-					.duration(request.getMediaMetadata() != null
-							? request.getMediaMetadata().getDuration()
-							: null)
-					.thumbnailUrl(request.getMediaMetadata() != null
-							? request.getMediaMetadata().getThumbnail()
-							: null)
+					.fileName(request.getMediaMetadata() != null ? request.getMediaMetadata().getFileName() : null)
+					.fileSize(request.getMediaMetadata() != null ? request.getMediaMetadata().getSize() : null)
+					.mimeType(request.getMediaMetadata() != null ? request.getMediaMetadata().getMimeType() : null)
+					.width(request.getMediaMetadata() != null ? request.getMediaMetadata().getWidth() : null)
+					.height(request.getMediaMetadata() != null ? request.getMediaMetadata().getHeight() : null)
+					.duration(request.getMediaMetadata() != null ? request.getMediaMetadata().getDuration() : null)
+					.thumbnailUrl(request.getMediaMetadata() != null ? request.getMediaMetadata().getThumbnail() : null)
 					.build();
 			messageAttachmentRepository.save(attachment);
 		}
@@ -203,6 +185,35 @@ public class MessageService {
 	}
 
 	@Transactional
+	public MessageStatusUpdateResult updateMessageStatus(Long userId, Long messageId, String status) {
+		Message message = messageRepository.findById(messageId)
+				.orElseThrow(() -> new MessageException(ErrorCode.MSG_NOT_FOUND));
+
+		MessageStatus.DeliveryStatus deliveryStatus = MessageStatus.DeliveryStatus.valueOf(status.toUpperCase());
+		messageStatusRepository.updateMessageStatus(messageId, userId, deliveryStatus, LocalDateTime.now());
+
+		long unreadCount = messageStatusRepository.countUnreadMessages(message.getConversation().getId(), userId);
+
+		return new MessageStatusUpdateResult(
+				messageId,
+				message.getConversation().getId(),
+				userId,
+				message.getSender().getId(),
+				status.toUpperCase(),
+				(int) unreadCount
+		);
+	}
+
+	public record MessageStatusUpdateResult(
+			Long messageId,
+			Long conversationId,
+			Long userId,
+			Long senderId,
+			String status,
+			int unreadCount
+	) {}
+
+	@Transactional
 	public void addReaction(Long userId, Long messageId,
 			MessageDto.AddReactionRequest request) {
 		Message message = messageRepository.findById(messageId).orElseThrow(
@@ -246,8 +257,7 @@ public class MessageService {
 				pageable);
 
 		List<MessageDto.MessageResponse> messageResponses = messages.stream()
-				.map(msg -> mapToMessageResponse(msg, userId))
-				.collect(Collectors.toList());
+				.map(msg -> mapToMessageResponse(msg, userId)).collect(Collectors.toList());
 
 		return MessageDto.MessageListResponse.builder()
 				.messages(messageResponses)
@@ -257,8 +267,7 @@ public class MessageService {
 				.build();
 	}
 
-	private MessageDto.MessageResponse mapToMessageResponse(Message message,
-			Long currentUserId) {
+	private MessageDto.MessageResponse mapToMessageResponse(Message message, Long currentUserId) {
 		List<MessageReaction> reactions = reactionRepository
 				.findByMessageId(message.getId());
 		List<MessageDto.ReactionInfo> reactionInfos = reactions.stream()
@@ -284,9 +293,8 @@ public class MessageService {
 						.count());
 
 		// Load attachments from repository to ensure they're fetched
-		List<MessageAttachment> attachments = messageAttachmentRepository
-				.findByMessageId(message.getId());
-
+		List<MessageAttachment> attachments = messageAttachmentRepository.findByMessageId(message.getId());
+		
 		MessageDto.MediaMetadata mediaMetadata = null;
 		String mediaUrl = null;
 		if (attachments != null && !attachments.isEmpty()) {
@@ -302,14 +310,20 @@ public class MessageService {
 		}
 
 		User sender = message.getSender();
-		String senderName = resolveName(currentUserId, sender);
+		Optional<Contact> senderContact = contactRepository
+				.findByUserIdAndContactUserId(currentUserId, sender.getId());
+		String senderName = senderContact.isPresent() 
+				? senderContact.get().getDisplayName() 
+				: sender.getDisplayName();
 
 		return MessageDto.MessageResponse.builder().id(message.getId())
-				.senderId(sender.getId()).senderName(senderName)
+				.senderId(sender.getId())
+				.senderName(senderName)
 				.senderMobileNumber(sender.getPhoneNumber())
 				.senderAvatar(sender.getProfilePictureUrl())
 				.content(message.getContent())
-				.messageType(message.getType().name()).mediaUrl(mediaUrl)
+				.messageType(message.getType().name())
+				.mediaUrl(mediaUrl)
 				.mediaMetadata(mediaMetadata)
 				.replyToMessageId(message.getReplyToMessage() != null
 						? message.getReplyToMessage().getId()
@@ -320,29 +334,17 @@ public class MessageService {
 	}
 
 	private String getDisplayName(Long currentUserId, User targetUser) {
-		return resolveName(currentUserId, targetUser);
-	}
-
-	private String resolveName(Long viewerUserId, User targetUser) {
 		Optional<Contact> contact = contactRepository
-				.findByUserIdAndContactUserId(viewerUserId, targetUser.getId());
-		if (contact.isPresent() && contact.get().getDisplayName() != null
-				&& !contact.get().getDisplayName().trim().isEmpty()) {
+				.findByUserIdAndContactUserId(currentUserId, targetUser.getId());
+		if (contact.isPresent()) {
 			return contact.get().getDisplayName();
 		}
-		if (targetUser.getDisplayName() != null
-				&& !targetUser.getDisplayName().trim().isEmpty()) {
-			return targetUser.getDisplayName();
-		}
-		String fullName = Stream
-				.of(targetUser.getFirstName(), targetUser.getLastName())
-				.filter(s -> s != null && !s.trim().isEmpty())
-				.collect(Collectors.joining(" "));
-		return !fullName.isEmpty() ? fullName : targetUser.getPhoneNumber();
+		String userDisplayName = targetUser.getDisplayName();
+		return (userDisplayName != null && !userDisplayName.trim().isEmpty()) 
+				? userDisplayName : targetUser.getPhoneNumber();
 	}
 
-	private MessageAttachment.AttachmentType mapMessageTypeToAttachmentType(
-			Message.MessageType messageType) {
+	private MessageAttachment.AttachmentType mapMessageTypeToAttachmentType(Message.MessageType messageType) {
 		return switch (messageType) {
 			case IMAGE -> MessageAttachment.AttachmentType.IMAGE;
 			case VIDEO -> MessageAttachment.AttachmentType.VIDEO;
@@ -351,64 +353,5 @@ public class MessageService {
 			case STICKER -> MessageAttachment.AttachmentType.STICKER;
 			default -> MessageAttachment.AttachmentType.DOCUMENT;
 		};
-	}
-
-	@Transactional
-	public List<Long> markConversationAsRead(Long userId, Long conversationId) {
-		List<Long> senderIds = messageStatusRepository.findUnreadSenderIds(conversationId, userId);
-		messageStatusRepository.markAllAsRead(conversationId, userId, LocalDateTime.now());
-		List<Message> lastMessages = messageRepository.findLastMessageByConversationId(conversationId, PageRequest.of(0, 1));
-		Long lastMessageId = lastMessages.isEmpty() ? null : lastMessages.get(0).getId();
-		conversationParticipantRepository.updateLastRead(conversationId, userId, LocalDateTime.now(), lastMessageId);
-		return senderIds;
-	}
-
-	@Transactional
-	public void updateMessageStatus(Long userId, Long messageId,
-			String status) {
-		messageStatusRepository.updateMessageStatus(messageId, userId,
-				MessageStatus.DeliveryStatus.valueOf(status.toUpperCase()),
-				LocalDateTime.now());
-	}
-
-	@Transactional(readOnly = true)
-	public Long getMessageSenderId(Long messageId) {
-		return messageRepository.findById(messageId)
-				.map(m -> m.getSender().getId()).orElse(null);
-	}
-
-	@Transactional(readOnly = true)
-	public String resolveSenderName(Long senderUserId, Long viewerUserId) {
-		User sender = userRepository.findById(senderUserId)
-				.orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
-		return resolveName(viewerUserId, sender);
-	}
-
-	@Transactional(readOnly = true)
-	public List<Long> getAllParticipantIds(Long conversationId) {
-		return conversationParticipantRepository
-				.findByConversationIdAndStatus(conversationId,
-						ConversationParticipant.ParticipantStatus.ACTIVE)
-				.stream().map(p -> p.getUser().getId())
-				.collect(Collectors.toList());
-	}
-
-	@Transactional(readOnly = true)
-	public MessageDto.MessageResponse buildMessageResponseForRecipient(
-			Long messageId, Long recipientId) {
-		Message message = messageRepository.findById(messageId).orElseThrow(
-				() -> new MessageException(ErrorCode.MSG_NOT_FOUND));
-		return mapToMessageResponse(message, recipientId);
-	}
-
-	@Transactional(readOnly = true)
-	public List<Long> getOtherParticipantIds(Long conversationId,
-			Long excludeUserId) {
-		return conversationParticipantRepository
-				.findByConversationIdAndStatus(conversationId,
-						ConversationParticipant.ParticipantStatus.ACTIVE)
-				.stream().map(p -> p.getUser().getId())
-				.filter(id -> !id.equals(excludeUserId))
-				.collect(Collectors.toList());
 	}
 }

@@ -13,7 +13,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
-import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -48,34 +47,8 @@ public class WebSocketMessageController {
 			MessageDto.MessageResponse response = messageService
 					.sendMessage(userId, conversationId, request, null, null);
 
-			// Send personalized response to each participant (correct senderName per recipient's contacts)
-			List<Long> allParticipantIds = messageService.getAllParticipantIds(conversationId);
-			for (Long participantId : allParticipantIds) {
-				MessageDto.MessageResponse personalizedResponse = participantId.equals(userId)
-						? response
-						: messageService.buildMessageResponseForRecipient(response.getId(), participantId);
-				messagingTemplate.convertAndSendToUser(participantId.toString(),
-						"/queue/conversation/" + conversationId, personalizedResponse);
-			}
-
-			// Push unread counter + last message update to all other participants (personalized senderName)
-			List<Long> participantIds = messageService.getOtherParticipantIds(conversationId, userId);
-			for (Long participantId : participantIds) {
-				String personalizedSenderName = messageService.resolveSenderName(userId, participantId);
-				Map<String, Object> unreadUpdate = Map.of(
-						"conversationId", conversationId,
-						"action", "increment",
-						"lastMessage", Map.of(
-								"id", response.getId(),
-								"content", response.getContent() != null ? response.getContent() : "",
-								"messageType", response.getMessageType(),
-								"senderId", response.getSenderId(),
-								"senderName", personalizedSenderName,
-								"timestamp", response.getCreatedAt().toString()
-						)
-				);
-				messagingTemplate.convertAndSendToUser(participantId.toString(), "/queue/unread-update", unreadUpdate);
-			}
+			messagingTemplate.convertAndSend(
+					"/topic/conversation/" + conversationId, response);
 
 		} catch (Exception e) {
 			log.error("Error processing message: ", e);
@@ -123,26 +96,6 @@ public class WebSocketMessageController {
 		}
 	}
 
-	@MessageMapping("/chat.read")
-	public void markConversationRead(@Payload MarkReadRequest markReadRequest,
-			Principal principal) {
-		try {
-			Long userId = Long.parseLong(principal.getName());
-			List<Long> senderIds = messageService.markConversationAsRead(userId, markReadRequest.getConversationId());
-			// Notify each unique sender that their messages were read
-			for (Long senderId : senderIds) {
-				if (!senderId.equals(userId)) {
-					messagingTemplate.convertAndSendToUser(senderId.toString(), "/queue/message-status",
-							Map.of("conversationId", markReadRequest.getConversationId(),
-									"status", "READ",
-									"readByUserId", userId));
-				}
-			}
-		} catch (Exception e) {
-			log.error("Error marking conversation as read: ", e);
-		}
-	}
-
 	@MessageMapping("/chat.status")
 	public void updateMessageStatus(@Payload MessageStatusUpdate statusUpdate,
 			Principal principal) {
@@ -151,17 +104,33 @@ public class WebSocketMessageController {
 			log.info("User {} updating message {} status to {}", userId,
 					statusUpdate.getMessageId(), statusUpdate.getStatus());
 
-			// Save status to DB
-			messageService.updateMessageStatus(userId, statusUpdate.getMessageId(), statusUpdate.getStatus());
+			messagingTemplate.convertAndSend("/queue/messages/" + userId,
+					statusUpdate);
+			MessageService.MessageStatusUpdateResult result = messageService
+					.updateMessageStatus(userId, statusUpdate.getMessageId(), statusUpdate.getStatus());
 
-			// Notify the original sender so their tick updates
-			Long senderId = messageService.getMessageSenderId(statusUpdate.getMessageId());
-			if (senderId != null && !senderId.equals(userId)) {
-				messagingTemplate.convertAndSendToUser(senderId.toString(), "/queue/message-status", statusUpdate);
-			}
+			// Notify the original message sender about the status change
+			messagingTemplate.convertAndSendToUser(
+					result.senderId().toString(), "/queue/message-status",
+					Map.of(
+							"messageId", result.messageId(),
+							"conversationId", result.conversationId(),
+							"status", result.status(),
+							"updatedBy", userId
+					));
+
+			// Push updated unread count to the user
+			messagingTemplate.convertAndSendToUser(
+					userId.toString(), "/queue/unread-count",
+					Map.of(
+							"conversationId", result.conversationId(),
+							"unreadCount", result.unreadCount()
+					));
 
 		} catch (Exception e) {
 			log.error("Error updating message status: ", e);
+			messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors",
+					Map.of("error", e.getMessage()));
 		}
 	}
 
@@ -182,20 +151,7 @@ public class WebSocketMessageController {
 				messageService.removeReaction(userId, reactionUpdate.getMessageId(), reactionUpdate.getEmoji());
 			}
 
-			// Send personalized reaction update to each participant (correct reactor displayName)
-			List<Long> allParticipantIds = messageService.getAllParticipantIds(reactionUpdate.getConversationId());
-			for (Long participantId : allParticipantIds) {
-				String reactorName = messageService.resolveSenderName(userId, participantId);
-				java.util.Map<String, Object> personalizedReaction = new java.util.HashMap<>();
-				personalizedReaction.put("messageId", reactionUpdate.getMessageId());
-				personalizedReaction.put("conversationId", reactionUpdate.getConversationId());
-				personalizedReaction.put("emoji", reactionUpdate.getEmoji());
-				personalizedReaction.put("action", reactionUpdate.getAction());
-				personalizedReaction.put("reactorId", userId);
-				personalizedReaction.put("reactorName", reactorName);
-				messagingTemplate.convertAndSendToUser(participantId.toString(),
-						"/queue/reaction/" + reactionUpdate.getConversationId(), personalizedReaction);
-			}
+			messagingTemplate.convertAndSend("/topic/conversation/" + reactionUpdate.getConversationId(), reactionUpdate);
 
 		} catch (Exception e) {
 			log.error("Error processing reaction: ", e);
@@ -283,11 +239,6 @@ public class WebSocketMessageController {
 		} catch (Exception e) {
 			log.error("Error viewing story: ", e);
 		}
-	}
-
-	@Data
-	public static class MarkReadRequest {
-		private Long conversationId;
 	}
 
 	@Data

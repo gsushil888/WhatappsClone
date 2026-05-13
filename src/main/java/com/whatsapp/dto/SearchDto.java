@@ -31,6 +31,7 @@ public class SearchDto {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class ContactSearchResult {
     private Long id;
+    @Builder.Default
     private String type = "CONTACT";
     private ContactUser contactUser;
     private String displayName;
@@ -56,6 +57,7 @@ public class SearchDto {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class ConversationSearchResult {
     private Long id;
+    @Builder.Default
     private String type = "CONVERSATION";
     private String name;
     private String profileImageUrl;
@@ -81,6 +83,7 @@ public class SearchDto {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class MessageSearchResult {
     private Long id;
+    @Builder.Default
     private String type = "MESSAGE";
     private String content;
     private LocalDateTime timestamp;
@@ -117,6 +120,7 @@ public class SearchDto {
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class UserSearchResult {
     private Long id;
+    @Builder.Default
     private String type = "USER";
     private String username;
     private String displayName;

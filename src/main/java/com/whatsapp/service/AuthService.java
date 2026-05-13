@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Service
@@ -325,13 +326,13 @@ public class AuthService {
     int attempts = 0;
 
     do {
-      int randomDigits = (int) (Math.random() * (99999 - 100 + 1)) + 100;
+      int randomDigits = ThreadLocalRandom.current().nextInt(100, 100000);
       username = baseUsername + randomDigits;
       attempts++;
     } while (userRepository.existsByUsername(username) && attempts < 10);
 
     if (userRepository.existsByUsername(username)) {
-      username = baseUsername + UUID.randomUUID().toString().substring(0, 8).replaceAll("-", "");
+      username = baseUsername + UUID.randomUUID().toString().substring(0, 8).replace("-", "");
     }
 
     return username;

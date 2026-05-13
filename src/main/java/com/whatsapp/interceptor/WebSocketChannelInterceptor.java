@@ -19,29 +19,37 @@ import lombok.extern.slf4j.Slf4j;
 public class WebSocketChannelInterceptor implements ChannelInterceptor {
 
 	@Override
-	public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
-		StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+	public Message<?> preSend(@NonNull Message<?> message,
+			@NonNull MessageChannel channel) {
+		StompHeaderAccessor accessor = MessageHeaderAccessor
+				.getAccessor(message, StompHeaderAccessor.class);
 
-		if (accessor == null || accessor.getCommand() == StompCommand.DISCONNECT
-				|| accessor.getSessionAttributes() == null) {
+		if (accessor == null
+				|| accessor.getCommand() == StompCommand.DISCONNECT) {
 			return message;
 		}
 
-		if (accessor.getSessionAttributes() != null) {
-			Object userId = accessor.getSessionAttributes().get("userId");
+		var sessionAttributes = accessor.getSessionAttributes();
+		if (sessionAttributes == null) {
+			return message;
+		}
 
-			if (userId != null) {
-				UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-						userId.toString(), null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+		Object userId = sessionAttributes.get("userId");
 
-				// Set in both accessor and SecurityContext
-				accessor.setUser(authentication);
-				SecurityContextHolder.getContext().setAuthentication(authentication);
+		if (userId != null) {
+			UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+					userId.toString(), null, Collections.singletonList(
+							new SimpleGrantedAuthority("ROLE_USER")));
 
-				log.debug("WebSocket user authenticated: {} for command: {}", userId, accessor.getCommand());
-			} else {
-				log.warn("No userId found in session attributes for command: {}", accessor.getCommand());
-			}
+			accessor.setUser(authentication);
+			SecurityContextHolder.getContext()
+					.setAuthentication(authentication);
+
+			log.debug("WebSocket user authenticated: {} for command: {}",
+					userId, accessor.getCommand());
+		} else {
+			log.warn("No userId found in session attributes for command: {}",
+					accessor.getCommand());
 		}
 
 		return message;
