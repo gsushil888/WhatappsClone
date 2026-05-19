@@ -18,7 +18,7 @@ public class PresenceScheduler {
     try {
       presenceService.cleanupOfflineUsers();
     } catch (Exception e) {
-      log.error("Error during presence cleanup: ", e);
+//      log.error("Error during presence cleanup: ", e);
     }
   }
 }

@@ -49,15 +49,12 @@ public class MessageService {
 		List<Message> messages;
 
 		if (beforeMessageId != null) {
-			// Scroll up - get older messages
 			messages = messageRepository.findMessagesBeforeId(conversationId,
 					beforeMessageId, pageable);
 		} else if (afterMessageId != null) {
-			// Scroll down - get newer messages
 			messages = messageRepository.findMessagesAfterId(conversationId,
 					afterMessageId, pageable);
 		} else {
-			// Initial load - get latest messages
 			messages = messageRepository
 					.findByConversationIdOrderByTimestampDesc(conversationId,
 							pageable);
@@ -399,6 +396,17 @@ public class MessageService {
 		Message message = messageRepository.findById(messageId).orElseThrow(
 				() -> new MessageException(ErrorCode.MSG_NOT_FOUND));
 		return mapToMessageResponse(message, recipientId);
+	}
+
+	@Transactional(readOnly = true)
+	public boolean isFirstMessage(Long conversationId) {
+		return messageRepository.countByConversationId(conversationId) == 1;
+	}
+
+	@Transactional(readOnly = true)
+	public String getConversationType(Long conversationId) {
+		return conversationRepository.findById(conversationId)
+				.map(c -> c.getType().name()).orElse(null);
 	}
 
 	@Transactional(readOnly = true)

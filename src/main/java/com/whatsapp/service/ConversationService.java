@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,7 @@ public class ConversationService {
 	private final MessageStatusRepository messageStatusRepository;
 	private final ContactRepository contactRepository;
 	private final PresenceService presenceService;
+	private final SimpMessagingTemplate messagingTemplate;
 
 	@Transactional(readOnly = true)
 	public ConversationDto.ConversationListResponse getUserConversations(Long userId, int limit, int offset,
@@ -54,7 +56,7 @@ public class ConversationService {
 		default:
 			conversations = conversationRepository.findUserConversations(userId, pageable);
 		}
-		log.info("CONVERSATIONS=> " + conversations);
+		log.info("User {} fetched {} conversations with filter '{}'" , userId, conversations.size(), filter);
 		List<ConversationDto.ConversationResponse> conversationResponses = conversations.stream()
 				.map(conv -> mapToConversationResponse(conv, userId)).collect(Collectors.toList());
 
@@ -81,6 +83,8 @@ public class ConversationService {
 			Optional<Conversation> existing = conversationRepository.findIndividualConversation(userId,
 					request.getParticipantId());
 			if (existing.isPresent()) {
+				log.info("User {} opened existing individual conversation {} with participant {}",
+						userId, existing.get().getId(), request.getParticipantId());
 				return mapToConversationResponse(existing.get(), userId);
 			}
 		} else if ("GROUP".equalsIgnoreCase(request.getType())) {
@@ -95,6 +99,8 @@ public class ConversationService {
 				.build();
 
 		conversation = conversationRepository.save(conversation);
+		log.info("User {} created {} conversation {} (title='{}')",
+				userId, conversation.getType(), conversation.getId(), conversation.getName());
 
 		ConversationParticipant creatorParticipant = ConversationParticipant.builder().conversation(conversation)
 				.user(user).role(ConversationParticipant.ParticipantRole.OWNER)
@@ -132,11 +138,28 @@ public class ConversationService {
 			}
 		}
 
-		return mapToConversationResponse(conversation, userId);
+		ConversationDto.ConversationResponse response = mapToConversationResponse(conversation, userId);
+
+		// For GROUP: push immediately to all added participants
+		// For INDIVIDUAL: User B sees the conversation only when first message arrives
+		if (conversation.getType() == Conversation.ConversationType.GROUP) {
+			List<Long> participantIds = participantRepository
+					.findByConversationIdAndStatus(conversation.getId(), ConversationParticipant.ParticipantStatus.ACTIVE)
+					.stream().map(p -> p.getUser().getId()).filter(id -> !id.equals(userId))
+					.collect(Collectors.toList());
+			log.info("Pushing new GROUP conversation {} to {} participants", conversation.getId(), participantIds.size());
+			for (Long participantId : participantIds) {
+				ConversationDto.ConversationResponse personalizedResponse = mapToConversationResponse(conversation, participantId);
+				messagingTemplate.convertAndSendToUser(participantId.toString(), "/queue/new-conversation", personalizedResponse);
+			}
+		}
+
+		return response;
 	}
 
 	@Transactional(readOnly = true)
 	public ConversationDto.ConversationDetailsResponse getConversationDetails(Long userId, Long conversationId) {
+		log.info("User {} fetching details of conversation {}", userId, conversationId);
 		Conversation conversation = conversationRepository.findByIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_NOT_FOUND));
 		return mapToConversationDetailsResponse(conversation, userId);
@@ -145,6 +168,7 @@ public class ConversationService {
 	@Transactional
 	public ConversationDto.ConversationResponse updateConversation(Long userId, Long conversationId,
 			ConversationDto.UpdateConversationRequest request) {
+		log.info("User {} updating conversation {}", userId, conversationId);
 		Conversation conversation = conversationRepository.findByIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_NOT_FOUND));
 
@@ -171,6 +195,7 @@ public class ConversationService {
 	@Transactional
 	public ConversationDto.AddParticipantsResponse addParticipants(Long userId, Long conversationId,
 			ConversationDto.AddParticipantsRequest request) {
+		log.info("User {} adding {} participants to conversation {}", userId, request.getUserIds().size(), conversationId);
 		Conversation conversation = conversationRepository.findByIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_NOT_FOUND));
 
@@ -187,11 +212,36 @@ public class ConversationService {
 			return null;
 		}).filter(p -> p != null).collect(Collectors.toList());
 
-		return ConversationDto.AddParticipantsResponse.builder().addedParticipants(addedParticipants).build();
+		ConversationDto.AddParticipantsResponse result = ConversationDto.AddParticipantsResponse.builder()
+				.addedParticipants(addedParticipants).build();
+
+		// Push new-conversation event to newly added users
+		for (Long newParticipantId : request.getUserIds()) {
+			messagingTemplate.convertAndSendToUser(newParticipantId.toString(), "/queue/new-conversation",
+					mapToConversationResponse(conversation, newParticipantId));
+		}
+
+		// Notify existing members about the new participants
+		List<Long> existingMemberIds = participantRepository
+				.findByConversationIdAndStatus(conversationId, ConversationParticipant.ParticipantStatus.ACTIVE)
+				.stream().map(p -> p.getUser().getId())
+				.filter(id -> !id.equals(userId) && !request.getUserIds().contains(id))
+				.collect(Collectors.toList());
+		for (Long memberId : existingMemberIds) {
+			messagingTemplate.convertAndSendToUser(memberId.toString(), "/queue/conversation-update",
+					java.util.Map.of(
+							"conversationId", conversationId,
+							"event", "PARTICIPANT_ADDED",
+							"addedParticipants", addedParticipants,
+							"addedByUserId", userId));
+		}
+
+		return result;
 	}
 
 	@Transactional
 	public void removeParticipant(Long userId, Long conversationId, Long participantId) {
+		log.info("User {} removing participant {} from conversation {}", userId, participantId, conversationId);
 		ConversationParticipant participant = participantRepository
 				.findByConversationIdAndUserId(conversationId, participantId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_PARTICIPANT_NOT_FOUND));
@@ -201,6 +251,7 @@ public class ConversationService {
 
 	@Transactional
 	public void leaveConversation(Long userId, Long conversationId) {
+		log.info("User {} leaving conversation {}", userId, conversationId);
 		ConversationParticipant participant = participantRepository
 				.findByConversationIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_PARTICIPANT_NOT_FOUND));
@@ -211,6 +262,7 @@ public class ConversationService {
 	@Transactional
 	public ConversationDto.MuteConversationResponse muteConversation(Long userId, Long conversationId,
 			ConversationDto.MuteConversationRequest request) {
+		log.info("User {} muting conversation {} for {} seconds", userId, conversationId, request.getDuration());
 		ConversationParticipant participant = participantRepository
 				.findByConversationIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_PARTICIPANT_NOT_FOUND));
@@ -289,7 +341,26 @@ public class ConversationService {
 	}
 
 	@Transactional
+	public ConversationDto.ClearConversationResponse clearConversation(Long userId, Long conversationId) {
+		log.info("User {} clearing conversation {}", userId, conversationId);
+		participantRepository.findByConversationIdAndUserId(conversationId, userId)
+				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_PARTICIPANT_NOT_FOUND));
+
+		List<Message> messages = messageRepository.findByConversationId(conversationId);
+		int clearedCount = messages.size();
+		messages.forEach(msg -> messageStatusRepository.deleteByMessageId(msg.getId()));
+		messageRepository.deleteByConversationId(conversationId);
+		log.info("User {} cleared {} messages from conversation {}", userId, clearedCount, conversationId);
+
+		return ConversationDto.ClearConversationResponse.builder()
+				.conversationId(conversationId)
+				.clearedMessagesCount(clearedCount)
+				.clearedAt(LocalDateTime.now()).build();
+	}
+
+	@Transactional
 	public ConversationDto.DeleteConversationResponse deleteConversation(Long userId, Long conversationId) {
+		log.info("User {} deleting conversation {}", userId, conversationId);
 		Conversation conversation = conversationRepository.findByIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_NOT_FOUND));
 
@@ -308,6 +379,7 @@ public class ConversationService {
 
 		// Delete conversation
 		conversationRepository.delete(conversation);
+		log.info("User {} deleted conversation {} with {} messages", userId, conversationId, deletedMessagesCount);
 
 		return ConversationDto.DeleteConversationResponse.builder().conversationId(conversationId)
 				.deletedMessagesCount(deletedMessagesCount).deletedAt(LocalDateTime.now()).build();
@@ -374,12 +446,8 @@ public class ConversationService {
 							otherUser.getId());
 					if (contact.isPresent()) {
 						displayTitle = contact.get().getDisplayName();
-						log.info("Contact saved - Conversation {}: userId={}, contactUserId={}, displayName={}",
-								conversation.getId(), userId, otherUser.getId(), displayTitle);
 					} else {
 						displayTitle = mobileNumber;
-						log.info("Contact NOT saved - Conversation {}: userId={}, contactUserId={}, showing mobile {}",
-								conversation.getId(), userId, otherUser.getId(), displayTitle);
 					}
 				} else {
 					ConversationParticipant anyParticipant = participantRepository

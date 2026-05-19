@@ -244,6 +244,21 @@ public class ConversationController {
 				.message("Conversation removed from favorites").build());
 	}
 
+	@PostMapping("/{conversationId}/clear")
+	public ResponseEntity<ApiResponse<ConversationDto.ClearConversationResponse>> clearConversation(
+			Authentication authentication, @PathVariable Long conversationId) {
+
+		Long userId = (Long) authentication.getPrincipal();
+		ConversationDto.ClearConversationResponse response = conversationService
+				.clearConversation(userId, conversationId);
+
+		return ResponseEntity.ok(
+				ApiResponse.<ConversationDto.ClearConversationResponse>builder()
+						.success(true).data(response)
+						.correlationId(RequestContext.getCorrelationId())
+						.message("Conversation cleared successfully").build());
+	}
+
 	@DeleteMapping("/{conversationId}")
 	public ResponseEntity<ApiResponse<ConversationDto.DeleteConversationResponse>> deleteConversation(
 			Authentication authentication, @PathVariable Long conversationId) {

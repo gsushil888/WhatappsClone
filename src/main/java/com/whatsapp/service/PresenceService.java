@@ -7,6 +7,7 @@ import com.whatsapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class PresenceService {
     private final SimpMessagingTemplate messagingTemplate;
     
     @Autowired(required = false)
+    @Qualifier("redisObjectTemplate")
     private RedisTemplate<String, Object> redisTemplate;
     
     private static final String PRESENCE_KEY = "presence:";

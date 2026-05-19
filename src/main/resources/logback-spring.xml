@@ -4,14 +4,14 @@
     
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>[%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint}] [%clr(%-5level)] %clr([%10t]){faint} [%clr(%c{1}){cyan}:%clr(%L){magenta}] %clr([%X{correlationId:-}]){yellow} - %m%n%wEx%n</pattern>
+            <pattern>[%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint}] [%clr(%-5level)] %clr([%10t]){faint} [%clr(%c{1}){cyan}:%clr(%L){magenta}] %clr([%X{correlationId:-} userId=%X{userId:-} sessId=%X{sessionId:-}]){yellow} - %m%n%wEx%n</pattern>
         </encoder>
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/app.log</file>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %c{1}:%L [%X{correlationId:-}] - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %c{1}:%L [%X{correlationId:-} userId=%X{userId:-} sessId=%X{sessionId:-}] - %msg%n</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>logs/app.%d{yyyy-MM-dd}.%i.log</fileNamePattern>

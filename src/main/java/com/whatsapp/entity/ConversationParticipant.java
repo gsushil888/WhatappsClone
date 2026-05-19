@@ -78,6 +78,9 @@ public class ConversationParticipant {
 	@Column(name = "mute_until")
 	private LocalDateTime muteUntil;
 
+	@Column(name = "cleared_at")
+	private LocalDateTime clearedAt;
+
 	@ToString.Exclude
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "added_by")

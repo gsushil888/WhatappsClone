@@ -267,6 +267,17 @@ public class ConversationDto {
   @NoArgsConstructor
   @AllArgsConstructor
   @JsonInclude(JsonInclude.Include.NON_NULL)
+  public static class ClearConversationResponse {
+    private Long conversationId;
+    private Integer clearedMessagesCount;
+    private LocalDateTime clearedAt;
+  }
+
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class DeleteConversationResponse {
     private Long conversationId;
     private Integer deletedMessagesCount;

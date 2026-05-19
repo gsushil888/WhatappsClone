@@ -33,6 +33,7 @@ public class SessionService {
 	private long refreshTokenExpiration;
 
 	@Autowired(required = false)
+	@org.springframework.beans.factory.annotation.Qualifier("redisObjectTemplate")
 	private RedisTemplate<String, Object> redisTemplate;
 
 	private static final String SESSION_CACHE_KEY = "session:";
@@ -70,6 +71,7 @@ public class SessionService {
 				LocalDateTime.now());
 	}
 
+	@Transactional
 	public UserSession createSession(User user) {
 		String deviceFingerprint = getDeviceFingerprintFromHeaders();
 		String ipAddress = RequestContext.getIpAddress();
@@ -78,10 +80,15 @@ public class SessionService {
 		log.info("[SERVICE] Creating session - userId: {}, device: {}, IP: {}", user.getId(), deviceFingerprint,
 				ipAddress);
 
-		Optional<UserSession> existingSession = findActiveSessionByDevice(user.getId(), deviceFingerprint);
-		if (existingSession.isPresent()) {
-			log.info("[SERVICE] Returning existing session: {}", existingSession.get().getId());
-			return existingSession.get();
+		// Revoke all existing active sessions (single session per user)
+		List<UserSession> activeSessions = userSessionRepository.findByUserIdAndStatus(user.getId(), UserSession.SessionStatus.ACTIVE);
+		if (!activeSessions.isEmpty()) {
+			log.info("[SERVICE] Revoking {} existing session(s) for userId: {}", activeSessions.size(), user.getId());
+			activeSessions.forEach(s -> s.setStatus(UserSession.SessionStatus.REVOKED));
+			userSessionRepository.saveAll(activeSessions);
+			Optional.ofNullable(redisTemplate).ifPresent(redis ->
+				activeSessions.forEach(s -> redis.delete(SESSION_CACHE_KEY + user.getId() + ":" + s.getDeviceFingerprint()))
+			);
 		}
 
 		log.info("[SERVICE] Creating new session - userId: {}", user.getId());
