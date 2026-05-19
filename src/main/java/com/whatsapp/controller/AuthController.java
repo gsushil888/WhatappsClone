@@ -127,41 +127,21 @@ public class AuthController {
 			Authentication authentication) {
 
 		if (authentication == null || authentication.getPrincipal() == null) {
-			log.warn(
-					"[CONTROLLER] GET /api/v1/auth/validate-session - No authentication found, correlationId: {}",
-					RequestContext.getCorrelationId());
-
+			log.warn("Session validation failed - not authenticated");
 			AuthDto.SessionValidationResponse response = AuthDto.SessionValidationResponse
-					.builder().valid(false).message("Not authenticated")
-					.build();
-
-			return ResponseEntity
-					.ok(ApiResponse.<AuthDto.SessionValidationResponse>builder()
-							.success(false).message("Authentication required")
-							.data(response)
-							.correlationId(RequestContext.getCorrelationId())
-							.build());
+					.builder().valid(false).message("Not authenticated").build();
+			return ResponseEntity.ok(ApiResponse.<AuthDto.SessionValidationResponse>builder()
+						.success(false).message("Authentication required")
+						.data(response).correlationId(RequestContext.getCorrelationId()).build());
 		}
 
 		Long userId = (Long) authentication.getPrincipal();
 		String sessionId = RequestContext.getSessionId();
+		AuthDto.SessionValidationResponse response = authService.validateSession(userId, sessionId);
+		log.info("Session validation for user {} - valid: {}", userId, response.isValid());
 
-		log.info(
-				"[CONTROLLER] GET /api/v1/auth/validate-session - userId: {}, sessionId: {}, correlationId: {}",
-				userId, sessionId, RequestContext.getCorrelationId());
-
-		AuthDto.SessionValidationResponse response = authService
-				.validateSession(userId, sessionId);
-
-		log.info(
-				"[CONTROLLER] Session validation - valid: {}, correlationId: {}",
-				response.isValid(), RequestContext.getCorrelationId());
-
-		return ResponseEntity
-				.ok(ApiResponse.<AuthDto.SessionValidationResponse>builder()
+		return ResponseEntity.ok(ApiResponse.<AuthDto.SessionValidationResponse>builder()
 						.success(true).message("Session validated")
-						.data(response)
-						.correlationId(RequestContext.getCorrelationId())
-						.build());
+						.data(response).correlationId(RequestContext.getCorrelationId()).build());
 	}
 }

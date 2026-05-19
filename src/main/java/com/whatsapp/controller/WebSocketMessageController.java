@@ -28,60 +28,85 @@ public class WebSocketMessageController {
 	@MessageMapping("/chat.message")
 	public void sendMessage(@Payload MessageDto.SendMessageRequest request,
 			SimpMessageHeaderAccessor headerAccessor, Principal principal) {
+		String principalName = principal != null ? principal.getName() : "unknown";
 		try {
-			log.info("Request in Websocket Message => {}", request);
-			log.info("Header of Websocket Message  => {}", headerAccessor);
-
 			Long userId = getUserId(principal, headerAccessor);
-
-			String conversationIdStr = headerAccessor
-					.getFirstNativeHeader("conversationId");
+			String conversationIdStr = headerAccessor.getFirstNativeHeader("conversationId");
 			if (conversationIdStr == null || conversationIdStr.isEmpty()) {
-				throw new IllegalArgumentException(
-						"conversationId header is required");
+				throw new IllegalArgumentException("conversationId header is required");
 			}
 			Long conversationId = Long.parseLong(conversationIdStr);
-
-			log.info("Sending message from user {} to conversation {}", userId,
-					conversationId);
+			log.info("User {} sending message to conversation {}", userId, conversationId);
 
 			MessageDto.MessageResponse response = messageService
 					.sendMessage(userId, conversationId, request, null, null);
 
-			// Send personalized response to each participant (correct senderName per recipient's contacts)
-			List<Long> allParticipantIds = messageService.getAllParticipantIds(conversationId);
+			boolean firstMessage = messageService
+					.isFirstMessage(conversationId);
+			String convType = messageService
+					.getConversationType(conversationId);
+
+			// Send personalized message to each participant
+			List<Long> allParticipantIds = messageService
+					.getAllParticipantIds(conversationId);
 			for (Long participantId : allParticipantIds) {
-				MessageDto.MessageResponse personalizedResponse = participantId.equals(userId)
-						? response
-						: messageService.buildMessageResponseForRecipient(response.getId(), participantId);
+				MessageDto.MessageResponse personalizedResponse = participantId
+						.equals(userId)
+								? response
+								: messageService
+										.buildMessageResponseForRecipient(
+												response.getId(),
+												participantId);
 				messagingTemplate.convertAndSendToUser(participantId.toString(),
-						"/queue/conversation/" + conversationId, personalizedResponse);
+						"/queue/conversation/" + conversationId,
+						personalizedResponse);
 			}
 
-			// Push unread counter + last message update to all other participants (personalized senderName)
-			List<Long> participantIds = messageService.getOtherParticipantIds(conversationId, userId);
-			for (Long participantId : participantIds) {
-				String personalizedSenderName = messageService.resolveSenderName(userId, participantId);
-				Map<String, Object> unreadUpdate = Map.of(
-						"conversationId", conversationId,
-						"action", "increment",
-						"lastMessage", Map.of(
-								"id", response.getId(),
-								"content", response.getContent() != null ? response.getContent() : "",
-								"messageType", response.getMessageType(),
-								"senderId", response.getSenderId(),
-								"senderName", personalizedSenderName,
-								"timestamp", response.getCreatedAt().toString()
-						)
-				);
-				messagingTemplate.convertAndSendToUser(participantId.toString(), "/queue/unread-update", unreadUpdate);
+			// Push to other participants: new-conversation on first message
+			// (INDIVIDUAL), unread-update otherwise
+			List<Long> otherParticipantIds = messageService
+					.getOtherParticipantIds(conversationId, userId);
+			for (Long participantId : otherParticipantIds) {
+				String senderName = messageService.resolveSenderName(userId,
+						participantId);
+				if (firstMessage && "INDIVIDUAL".equals(convType)) {
+					Map<String, Object> newConvPayload = new java.util.HashMap<>();
+					newConvPayload.put("conversationId", conversationId);
+					newConvPayload.put("type", convType);
+					newConvPayload.put("unreadCount", 1);
+					newConvPayload.put("lastMessage",
+							Map.of("id", response.getId(), "content",
+									response.getContent() != null
+											? response.getContent()
+											: "",
+									"messageType", response.getMessageType(),
+									"senderId", userId, "senderName",
+									senderName, "timestamp",
+									response.getCreatedAt().toString()));
+					messagingTemplate.convertAndSendToUser(
+							participantId.toString(), "/queue/new-conversation",
+							newConvPayload);
+				} else {
+					Map<String, Object> unreadUpdate = Map.of("conversationId",
+							conversationId, "action", "increment",
+							"lastMessage",
+							Map.of("id", response.getId(), "content",
+									response.getContent() != null
+											? response.getContent()
+											: "",
+									"messageType", response.getMessageType(),
+									"senderId", response.getSenderId(),
+									"senderName", senderName, "timestamp",
+									response.getCreatedAt().toString()));
+					messagingTemplate.convertAndSendToUser(
+							participantId.toString(), "/queue/unread-update",
+							unreadUpdate);
+				}
 			}
 
 		} catch (Exception e) {
 			log.error("Error processing message: ", e);
-			String userId = principal != null ? principal.getName() : "unknown";
-			messagingTemplate.convertAndSendToUser(userId, "/queue/errors",
-					Map.of("error", e.getMessage()));
+			messagingTemplate.convertAndSendToUser(principalName, "/queue/errors", Map.of("error", e.getMessage()));
 		}
 	}
 
@@ -102,8 +127,7 @@ public class WebSocketMessageController {
 	}
 
 	@MessageMapping("/chat.typing")
-	public void handleTyping(@Payload TypingIndicator typingIndicator,
-			Principal principal) {
+	public void handleTyping(@Payload TypingIndicator typingIndicator, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
 			log.info("User {} {} typing in conversation {}", userId,
@@ -124,18 +148,19 @@ public class WebSocketMessageController {
 	}
 
 	@MessageMapping("/chat.read")
-	public void markConversationRead(@Payload MarkReadRequest markReadRequest,
-			Principal principal) {
+	public void markConversationRead(@Payload MarkReadRequest markReadRequest, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
-			List<Long> senderIds = messageService.markConversationAsRead(userId, markReadRequest.getConversationId());
+			List<Long> senderIds = messageService.markConversationAsRead(userId,
+					markReadRequest.getConversationId());
 			// Notify each unique sender that their messages were read
 			for (Long senderId : senderIds) {
 				if (!senderId.equals(userId)) {
-					messagingTemplate.convertAndSendToUser(senderId.toString(), "/queue/message-status",
-							Map.of("conversationId", markReadRequest.getConversationId(),
-									"status", "READ",
-									"readByUserId", userId));
+					messagingTemplate.convertAndSendToUser(senderId.toString(),
+							"/queue/message-status",
+							Map.of("conversationId",
+									markReadRequest.getConversationId(),
+									"status", "READ", "readByUserId", userId));
 				}
 			}
 		} catch (Exception e) {
@@ -144,20 +169,22 @@ public class WebSocketMessageController {
 	}
 
 	@MessageMapping("/chat.status")
-	public void updateMessageStatus(@Payload MessageStatusUpdate statusUpdate,
-			Principal principal) {
+	public void updateMessageStatus(@Payload MessageStatusUpdate statusUpdate, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
 			log.info("User {} updating message {} status to {}", userId,
 					statusUpdate.getMessageId(), statusUpdate.getStatus());
 
 			// Save status to DB
-			messageService.updateMessageStatus(userId, statusUpdate.getMessageId(), statusUpdate.getStatus());
+			messageService.updateMessageStatus(userId,
+					statusUpdate.getMessageId(), statusUpdate.getStatus());
 
 			// Notify the original sender so their tick updates
-			Long senderId = messageService.getMessageSenderId(statusUpdate.getMessageId());
+			Long senderId = messageService
+					.getMessageSenderId(statusUpdate.getMessageId());
 			if (senderId != null && !senderId.equals(userId)) {
-				messagingTemplate.convertAndSendToUser(senderId.toString(), "/queue/message-status", statusUpdate);
+				messagingTemplate.convertAndSendToUser(senderId.toString(),
+						"/queue/message-status", statusUpdate);
 			}
 
 		} catch (Exception e) {
@@ -166,8 +193,7 @@ public class WebSocketMessageController {
 	}
 
 	@MessageMapping("/chat.reaction")
-	public void handleReaction(@Payload ReactionUpdate reactionUpdate,
-			Principal principal) {
+	public void handleReaction(@Payload ReactionUpdate reactionUpdate, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
 			log.info("User {} {} reaction {} on message {}", userId,
@@ -177,24 +203,33 @@ public class WebSocketMessageController {
 			if ("add".equals(reactionUpdate.getAction())) {
 				MessageDto.AddReactionRequest request = new MessageDto.AddReactionRequest();
 				request.setEmoji(reactionUpdate.getEmoji());
-				messageService.addReaction(userId, reactionUpdate.getMessageId(), request);
+				messageService.addReaction(userId,
+						reactionUpdate.getMessageId(), request);
 			} else if ("remove".equals(reactionUpdate.getAction())) {
-				messageService.removeReaction(userId, reactionUpdate.getMessageId(), reactionUpdate.getEmoji());
+				messageService.removeReaction(userId,
+						reactionUpdate.getMessageId(),
+						reactionUpdate.getEmoji());
 			}
 
-			// Send personalized reaction update to each participant (correct reactor displayName)
-			List<Long> allParticipantIds = messageService.getAllParticipantIds(reactionUpdate.getConversationId());
+			// Send personalized reaction update to each participant (correct
+			// reactor displayName)
+			List<Long> allParticipantIds = messageService
+					.getAllParticipantIds(reactionUpdate.getConversationId());
 			for (Long participantId : allParticipantIds) {
-				String reactorName = messageService.resolveSenderName(userId, participantId);
+				String reactorName = messageService.resolveSenderName(userId,
+						participantId);
 				java.util.Map<String, Object> personalizedReaction = new java.util.HashMap<>();
-				personalizedReaction.put("messageId", reactionUpdate.getMessageId());
-				personalizedReaction.put("conversationId", reactionUpdate.getConversationId());
+				personalizedReaction.put("messageId",
+						reactionUpdate.getMessageId());
+				personalizedReaction.put("conversationId",
+						reactionUpdate.getConversationId());
 				personalizedReaction.put("emoji", reactionUpdate.getEmoji());
 				personalizedReaction.put("action", reactionUpdate.getAction());
 				personalizedReaction.put("reactorId", userId);
 				personalizedReaction.put("reactorName", reactorName);
 				messagingTemplate.convertAndSendToUser(participantId.toString(),
-						"/queue/reaction/" + reactionUpdate.getConversationId(), personalizedReaction);
+						"/queue/reaction/" + reactionUpdate.getConversationId(),
+						personalizedReaction);
 			}
 
 		} catch (Exception e) {
@@ -204,8 +239,7 @@ public class WebSocketMessageController {
 	}
 
 	@MessageMapping("/presence.update")
-	public void updatePresence(@Payload PresenceUpdate presenceUpdate,
-			Principal principal) {
+	public void updatePresence(@Payload PresenceUpdate presenceUpdate, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
 			log.info("User {} updating presence to {}", userId,
@@ -224,8 +258,7 @@ public class WebSocketMessageController {
 	}
 
 	@MessageMapping("/call.initiate")
-	public void initiateCall(@Payload CallInitiation callInitiation,
-			Principal principal) {
+	public void initiateCall(@Payload CallInitiation callInitiation, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
 			log.info("User {} initiating {} call", userId,
@@ -240,8 +273,7 @@ public class WebSocketMessageController {
 	}
 
 	@MessageMapping("/call.signal")
-	public void handleWebRTCSignal(@Payload WebRTCSignal signal,
-			Principal principal) {
+	public void handleWebRTCSignal(@Payload WebRTCSignal signal, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
 			log.info("User {} sending WebRTC signal of type {}", userId,

@@ -33,8 +33,6 @@ public class RequestContextFilter extends OncePerRequestFilter {
     String method = request.getMethod();
     String correlationId = getOrGenerateCorrelationId(request);
 
-    log.info("[REQUEST-START] {} {} - correlationId: {}", method, requestUri, correlationId);
-
     RequestContext.RequestInfo requestInfo = RequestContext.RequestInfo.builder()
         .correlationId(correlationId).deviceInfo(extractDeviceInfo(request))
         .headers(extractHeaders(request)).ipAddress(extractClientIpAddress(request))
@@ -50,16 +48,8 @@ public class RequestContextFilter extends OncePerRequestFilter {
     MDC.put("method", method);
     MDC.put("uri", requestUri);
 
-    log.info("[REQUEST-CONTEXT] IP: {}, UserAgent: {}, Device: {}", requestInfo.getIpAddress(),
-        requestInfo.getUserAgent(), requestInfo.getDeviceInfo());
-
     try {
       chain.doFilter(request, response);
-
-      long duration = System.currentTimeMillis() - requestInfo.getStartTime();
-      log.info("[REQUEST-END] {} {} - Status: {}, Duration: {}ms, correlationId: {}", method,
-          requestUri, response.getStatus(), duration, correlationId);
-
     } catch (Exception e) {
       long duration = System.currentTimeMillis() - requestInfo.getStartTime();
       log.error("[REQUEST-ERROR] {} {} - Duration: {}ms, correlationId: {}, Error: {}", method,

@@ -60,5 +60,16 @@ public interface ConversationParticipantRepository
       + "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId")
   int leaveConversation(@Param("conversationId") Long conversationId, @Param("userId") Long userId);
 
+  @Modifying
+  @Query("UPDATE ConversationParticipant cp SET cp.clearedAt = :clearedAt "
+      + "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId")
+  int updateClearedAt(@Param("conversationId") Long conversationId,
+      @Param("userId") Long userId, @Param("clearedAt") LocalDateTime clearedAt);
+
+  @Query("SELECT cp.clearedAt FROM ConversationParticipant cp "
+      + "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId")
+  LocalDateTime findClearedAt(@Param("conversationId") Long conversationId,
+      @Param("userId") Long userId);
+
   void deleteByConversationId(Long conversationId);
 }
