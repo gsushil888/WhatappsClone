@@ -18,5 +18,6 @@ public class WhatappsBackendLatestApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(WhatappsBackendLatestApplication.class, args);
 	}
+	
 
 }
