@@ -23,6 +23,8 @@
     </properties>
 
     <dependencies>
+
+
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -125,13 +127,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- 🔥 FIX: Logstash Logback Encoder 
-        <dependency>
-            <groupId>net.logstash.logback</groupId>
-            <artifactId>logstash-logback-encoder</artifactId>
-            <version>${logstash-encoder.version}</version>
-        </dependency>
-        -->
     </dependencies>
 
     <build>
