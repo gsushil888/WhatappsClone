@@ -27,12 +27,14 @@ public class CallDto {
     private LocalDateTime endedAt;
     private Integer durationSeconds;
     private String callDirection;
-    private String displayName;
-    private String profilePictureUrl;
+    private String displayName;              // callee name (INDIVIDUAL) or group name (GROUP)
+    private Long callerUserId;               // always the initiator's userId
+    private String callerProfilePictureUrl;  // always the initiator's picture
+    private String groupImageUrl;            // group picture — only set for GROUP calls
     private Long conversationId;
     private String callToken;
     private List<IceServer> iceServers;
-    private List<ParticipantDto> participants;
+    private List<ParticipantDto> participants; // each has userId + displayName + profilePictureUrl
   }
 
   @Data

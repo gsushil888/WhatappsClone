@@ -161,26 +161,66 @@ public class AuthService {
     }
   }
 
+//  @Transactional
+//  public AuthDto.RegisterResponse resendOtp(AuthDto.ResendOtpRequest request) {
+//    OtpVerification oldOtp = otpRepository.findByTempSessionId(request.getTempSessionId())
+//        .orElseThrow(() -> new AuthException(ErrorCode.AUTH_OTP_INVALID, "Invalid session"));
+//
+//    User user = userRepository.findByIdentifierAndStatus(oldOtp.getContactInfo())
+//        .orElseThrow(() -> new AuthException(ErrorCode.AUTH_USER_NOT_FOUND));
+//
+//    String tempSessionId = generateTempSessionId();
+//    String otpCode =
+//        otpService.generateOtp(tempSessionId, oldOtp.getContactInfo(), oldOtp.getOtpType());
+//    emailService.sendOtpEmail(oldOtp.getContactInfo(), otpCode, user.getDisplayName());
+//
+//    String maskedContact =
+//        oldOtp.getContactInfo().contains("@") ? maskEmail(oldOtp.getContactInfo())
+//            : maskPhone(oldOtp.getContactInfo());
+//
+//    return AuthDto.RegisterResponse.builder().tempSessionId(tempSessionId).otpSentTo(maskedContact)
+//        .expiresIn(60).expiresAt(LocalDateTime.now().plusMinutes(1)).resendAvailableIn(60)
+//        .username(user.getUsername()).build();
+//  }
+  
+  
   @Transactional
   public AuthDto.RegisterResponse resendOtp(AuthDto.ResendOtpRequest request) {
-    OtpVerification oldOtp = otpRepository.findByTempSessionId(request.getTempSessionId())
-        .orElseThrow(() -> new AuthException(ErrorCode.AUTH_OTP_INVALID, "Invalid session"));
 
-    User user = userRepository.findByIdentifierAndStatus(oldOtp.getContactInfo())
-        .orElseThrow(() -> new AuthException(ErrorCode.AUTH_USER_NOT_FOUND));
+      OtpVerification oldOtp = otpRepository
+          .findByTempSessionId(request.getTempSessionId())
+          .orElseThrow(() ->
+              new AuthException(ErrorCode.AUTH_OTP_INVALID, "Invalid session"));
 
-    String tempSessionId = generateTempSessionId();
-    String otpCode =
-        otpService.generateOtp(tempSessionId, oldOtp.getContactInfo(), oldOtp.getOtpType());
-    emailService.sendOtpEmail(oldOtp.getContactInfo(), otpCode, user.getDisplayName());
+      User user = userRepository
+          .findByIdentifierAndStatus(oldOtp.getContactInfo())
+          .orElseThrow(() ->
+              new AuthException(ErrorCode.AUTH_USER_NOT_FOUND));
 
-    String maskedContact =
-        oldOtp.getContactInfo().contains("@") ? maskEmail(oldOtp.getContactInfo())
-            : maskPhone(oldOtp.getContactInfo());
+      // invalidate old OTP
+      oldOtp.setOtpCode(null);
+      oldOtp.setExpiresAt(LocalDateTime.now());
 
-    return AuthDto.RegisterResponse.builder().tempSessionId(tempSessionId).otpSentTo(maskedContact)
-        .expiresIn(60).expiresAt(LocalDateTime.now().plusMinutes(1)).resendAvailableIn(60)
-        .username(user.getUsername()).build();
+      String otpCode = otpService.generateOtp(
+          request.getTempSessionId(),
+          oldOtp.getContactInfo(),
+          oldOtp.getOtpType()
+      );
+
+      emailService.sendOtpEmail(
+          oldOtp.getContactInfo(),
+          otpCode,
+          user.getDisplayName()
+      );
+
+      return AuthDto.RegisterResponse.builder()
+          .tempSessionId(request.getTempSessionId())
+          .otpSentTo(maskEmail(oldOtp.getContactInfo()))
+          .expiresIn(60)
+          .expiresAt(LocalDateTime.now().plusMinutes(1))
+          .resendAvailableIn(60)
+          .username(user.getDisplayName())
+          .build();
   }
 
   private AuthDto.LoginResponse handleOtpLogin(User user, AuthDto.LoginRequest request) {

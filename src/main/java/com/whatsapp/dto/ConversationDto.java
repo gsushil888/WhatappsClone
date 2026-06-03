@@ -36,6 +36,8 @@ public class ConversationDto {
     private Boolean isOnline;
     private LocalDateTime lastActiveAt;
     private LocalDateTime createdAt;
+    private LocalDateTime removedAt;
+    private String removedByName;
   }
 
   @Data
@@ -129,6 +131,9 @@ public class ConversationDto {
     private Boolean isOnline;
     private LocalDateTime lastActiveAt;
     private LocalDateTime joinedAt;
+    private String addedByName;
+    private String removedByName;
+    private LocalDateTime removedAt;
   }
 
   @Data

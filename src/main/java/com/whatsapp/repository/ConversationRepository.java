@@ -14,7 +14,11 @@ import java.util.Optional;
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 
   @Query("SELECT DISTINCT c FROM Conversation c " + "JOIN c.participants p "
-      + "WHERE p.user.id = :userId AND p.status = 'ACTIVE' AND (p.isArchived = false OR p.isArchived IS NULL) "
+      + "WHERE p.user.id = :userId "
+      + "AND (p.status = 'ACTIVE' "
+      + "  OR (p.status = 'LEFT' AND EXISTS (SELECT m FROM Message m WHERE m.conversation.id = c.id AND m.isDeleted = false AND m.createdAt > p.clearedAt)) "
+      + "  OR (p.status = 'REMOVED' AND c.type = 'GROUP')) "
+      + "AND (p.isArchived = false OR p.isArchived IS NULL) "
       + "ORDER BY c.updatedAt DESC, c.createdAt DESC")
   List<Conversation> findUserConversations(@Param("userId") Long userId, Pageable pageable);
 
@@ -42,13 +46,17 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
   List<Conversation> findBlockedConversations(@Param("userId") Long userId, Pageable pageable);
 
   @Query("SELECT c FROM Conversation c " + "JOIN c.participants p "
-      + "WHERE c.id = :conversationId AND p.user.id = :userId AND p.status = 'ACTIVE'")
+      + "WHERE c.id = :conversationId AND p.user.id = :userId "
+      + "AND p.status IN ('ACTIVE', 'LEFT', 'REMOVED')")
   Optional<Conversation> findByIdAndUserId(@Param("conversationId") Long conversationId,
       @Param("userId") Long userId);
 
-  @Query("SELECT c FROM Conversation c " + "JOIN c.participants p1 " + "JOIN c.participants p2 "
-      + "WHERE c.type = 'INDIVIDUAL' " + "AND p1.user.id = :userId1 AND p1.status = 'ACTIVE' "
-      + "AND p2.user.id = :userId2 AND p2.status = 'ACTIVE'")
+  // Finds any existing INDIVIDUAL conversation between two users regardless of status
+  // (ACTIVE or LEFT) — supports WhatsApp-style re-surface when one user deleted the chat
+  @Query("SELECT c FROM Conversation c JOIN c.participants p1 JOIN c.participants p2 "
+      + "WHERE c.type = 'INDIVIDUAL' "
+      + "AND p1.user.id = :userId1 AND p1.status IN ('ACTIVE', 'LEFT') "
+      + "AND p2.user.id = :userId2 AND p2.status IN ('ACTIVE', 'LEFT')")
   Optional<Conversation> findIndividualConversation(@Param("userId1") Long userId1,
       @Param("userId2") Long userId2);
 

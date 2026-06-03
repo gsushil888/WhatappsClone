@@ -88,6 +88,20 @@ public class ConversationParticipant {
 
 	@ToString.Exclude
 	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "removed_by")
+	private User removedBy;
+
+	@Column(name = "removed_at")
+	private LocalDateTime removedAt;
+
+	@Column(name = "readded_at")
+	private LocalDateTime readdedAt;
+
+	@Column(name = "gap_start")
+	private LocalDateTime gapStart; // = removedAt before re-add, used to exclude gap messages
+
+	@ToString.Exclude
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "promoted_by")
 	private User promotedBy;
 

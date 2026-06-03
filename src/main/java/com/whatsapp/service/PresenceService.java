@@ -208,37 +208,38 @@ public class PresenceService {
         }
     }
 
-    public void setUserTyping(Long userId, Long conversationId) {
+    public record TypingParticipantInfo(String displayName, String mobileNumber, boolean isContact) {}
+
+    public void setUserTyping(Long userId, Long conversationId, Map<Long, TypingParticipantInfo> participantInfoMap) {
         if (redisTemplate != null) {
             String key = TYPING_KEY + conversationId + ":" + userId;
             redisTemplate.opsForValue().set(key, LocalDateTime.now().toString(), TYPING_TIMEOUT, TimeUnit.SECONDS);
         }
-        
-        Map<String, Object> typingUpdate = Map.of(
-            "userId", userId,
-            "conversationId", conversationId,
-            "action", "start",
-            "timestamp", System.currentTimeMillis()
-        );
-        
-        messagingTemplate.convertAndSend("/topic/conversation/" + conversationId + "/typing", typingUpdate);
+        sendTypingEvent(userId, conversationId, "start", participantInfoMap);
         log.debug("User {} started typing in conversation {}", userId, conversationId);
     }
 
-    public void setUserStoppedTyping(Long userId, Long conversationId) {
+    public void setUserStoppedTyping(Long userId, Long conversationId, Map<Long, TypingParticipantInfo> participantInfoMap) {
         if (redisTemplate != null) {
             String key = TYPING_KEY + conversationId + ":" + userId;
             redisTemplate.delete(key);
         }
-        
-        Map<String, Object> typingUpdate = Map.of(
-            "userId", userId,
-            "conversationId", conversationId,
-            "action", "stop",
-            "timestamp", System.currentTimeMillis()
-        );
-        
-        messagingTemplate.convertAndSend("/topic/conversation/" + conversationId + "/typing", typingUpdate);
+        sendTypingEvent(userId, conversationId, "stop", participantInfoMap);
         log.debug("User {} stopped typing in conversation {}", userId, conversationId);
+    }
+
+    private void sendTypingEvent(Long userId, Long conversationId, String action, Map<Long, TypingParticipantInfo> participantInfoMap) {
+        participantInfoMap.forEach((participantId, info) -> {
+            Map<String, Object> typingUpdate = new java.util.HashMap<>();
+            typingUpdate.put("userId", userId);
+            typingUpdate.put("displayName", info.displayName());
+            typingUpdate.put("mobileNumber", info.mobileNumber());
+            typingUpdate.put("isContact", info.isContact());
+            typingUpdate.put("conversationId", conversationId);
+            typingUpdate.put("action", action);
+            typingUpdate.put("timestamp", System.currentTimeMillis());
+            messagingTemplate.convertAndSendToUser(participantId.toString(),
+                    "/queue/conversation/" + conversationId + "/typing", typingUpdate);
+        });
     }
 }

@@ -29,7 +29,7 @@ public interface ConversationParticipantRepository
       @Param("status") ConversationParticipant.ParticipantStatus status);
 
   @Query("SELECT cp FROM ConversationParticipant cp "
-      + "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId AND cp.status = 'ACTIVE' "
+      + "WHERE cp.conversation.id = :conversationId AND cp.user.id = :userId "
       + "ORDER BY cp.joinedAt DESC")
   List<ConversationParticipant> findAllByConversationIdAndUserId(
       @Param("conversationId") Long conversationId, @Param("userId") Long userId);
@@ -72,4 +72,7 @@ public interface ConversationParticipantRepository
       @Param("userId") Long userId);
 
   void deleteByConversationId(Long conversationId);
+
+  @Query("SELECT cp FROM ConversationParticipant cp WHERE cp.conversation.id = :conversationId")
+  List<ConversationParticipant> findByConversationId(@Param("conversationId") Long conversationId);
 }

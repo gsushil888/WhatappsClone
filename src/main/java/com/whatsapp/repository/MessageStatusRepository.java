@@ -52,4 +52,21 @@ public interface MessageStatusRepository extends JpaRepository<MessageStatus, Lo
       + "AND ms.status != 'READ' AND ms.message.sender.id != :userId")
   List<Long> findUnreadSenderIds(@Param("conversationId") Long conversationId,
       @Param("userId") Long userId);
+
+  // Returns map of senderId -> max(messageId) for unread messages in this conversation
+  // Used to push exact lastReadMessageId in the tick update to each sender
+  @Query("SELECT ms.message.sender.id, MAX(ms.message.id) FROM MessageStatus ms "
+      + "WHERE ms.message.conversation.id = :conversationId AND ms.user.id = :userId "
+      + "AND ms.status != 'READ' AND ms.message.sender.id != :userId "
+      + "GROUP BY ms.message.sender.id")
+  List<Object[]> findUnreadSenderLastMessageIdsRaw(@Param("conversationId") Long conversationId,
+      @Param("userId") Long userId);
+
+  default java.util.Map<Long, Long> findUnreadSenderLastMessageIds(Long conversationId, Long userId) {
+    java.util.Map<Long, Long> result = new java.util.HashMap<>();
+    for (Object[] row : findUnreadSenderLastMessageIdsRaw(conversationId, userId)) {
+      result.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+    }
+    return result;
+  }
 }

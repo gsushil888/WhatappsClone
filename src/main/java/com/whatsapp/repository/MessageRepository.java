@@ -40,24 +40,54 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
       @Param("conversationId") Long conversationId, @Param("userId") Long userId);
 
   @Query("SELECT m FROM Message m " + "WHERE m.conversation.id = :conversationId "
-      + "AND m.isDeleted = false " + "ORDER BY m.createdAt DESC")
+      + "AND m.isDeleted = false "
+      + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+      + "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
+      + "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
+      + "ORDER BY m.createdAt DESC")
   List<Message> findByConversationIdOrderByTimestampDesc(
-      @Param("conversationId") Long conversationId, Pageable pageable);
+      @Param("conversationId") Long conversationId,
+      @Param("clearedAt") LocalDateTime clearedAt,
+      @Param("removedAt") LocalDateTime removedAt,
+      @Param("gapStart") LocalDateTime gapStart,
+      @Param("readdedAt") LocalDateTime readdedAt,
+      Pageable pageable);
 
   @Query("SELECT COUNT(m) FROM Message m " + "WHERE m.conversation.id = :conversationId "
-      + "AND m.isDeleted = false")
-  long countByConversationId(@Param("conversationId") Long conversationId);
+      + "AND m.isDeleted = false "
+      + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+      + "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
+      + "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt)")
+  long countByConversationId(@Param("conversationId") Long conversationId,
+      @Param("clearedAt") LocalDateTime clearedAt,
+      @Param("removedAt") LocalDateTime removedAt,
+      @Param("gapStart") LocalDateTime gapStart,
+      @Param("readdedAt") LocalDateTime readdedAt);
 
   @Query("SELECT m FROM Message m " + "WHERE m.conversation.id = :conversationId "
       + "AND LOWER(m.content) LIKE LOWER(CONCAT('%', :query, '%')) " + "AND m.isDeleted = false "
+      + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+      + "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
+      + "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
       + "ORDER BY m.createdAt DESC")
   List<Message> searchInConversation(@Param("conversationId") Long conversationId,
-      @Param("query") String query, Pageable pageable);
+      @Param("query") String query, @Param("clearedAt") LocalDateTime clearedAt,
+      @Param("removedAt") LocalDateTime removedAt,
+      @Param("gapStart") LocalDateTime gapStart,
+      @Param("readdedAt") LocalDateTime readdedAt,
+      Pageable pageable);
 
   @Query("SELECT m FROM Message m " + "LEFT JOIN FETCH m.sender "
       + "WHERE m.conversation.id = :conversationId " + "AND m.isDeleted = false "
+      + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+      + "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
+      + "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
       + "ORDER BY m.createdAt DESC")
   List<Message> findLastMessageByConversationId(@Param("conversationId") Long conversationId,
+      @Param("clearedAt") LocalDateTime clearedAt,
+      @Param("removedAt") LocalDateTime removedAt,
+      @Param("gapStart") LocalDateTime gapStart,
+      @Param("readdedAt") LocalDateTime readdedAt,
       Pageable pageable);
 
   @Query("SELECT m FROM Message m " + "LEFT JOIN FETCH m.sender " + "LEFT JOIN FETCH m.attachments "
@@ -66,16 +96,32 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
   List<Message> findMediaMessages(@Param("conversationId") Long conversationId, Pageable pageable);
 
   @Query("SELECT m FROM Message m " + "WHERE m.conversation.id = :conversationId "
-      + "AND m.id < :messageId " + "AND m.isDeleted = false " + "ORDER BY m.id DESC")
+      + "AND m.id < :messageId " + "AND m.isDeleted = false "
+      + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+      + "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
+      + "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
+      + "ORDER BY m.id DESC")
   List<Message> findMessagesBeforeId(@Param("conversationId") Long conversationId,
-      @Param("messageId") Long messageId, Pageable pageable);
+      @Param("messageId") Long messageId,
+      @Param("clearedAt") LocalDateTime clearedAt,
+      @Param("removedAt") LocalDateTime removedAt,
+      @Param("gapStart") LocalDateTime gapStart,
+      @Param("readdedAt") LocalDateTime readdedAt,
+      Pageable pageable);
 
   @Query("SELECT m FROM Message m " + "WHERE m.conversation.id = :conversationId "
-      + "AND m.id > :messageId " + "AND m.isDeleted = false " + "ORDER BY m.id ASC")
+      + "AND m.id > :messageId " + "AND m.isDeleted = false "
+      + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+      + "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
+      + "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
+      + "ORDER BY m.id ASC")
   List<Message> findMessagesAfterId(@Param("conversationId") Long conversationId,
-      @Param("messageId") Long messageId, Pageable pageable);
+      @Param("messageId") Long messageId,
+      @Param("clearedAt") LocalDateTime clearedAt,
+      @Param("removedAt") LocalDateTime removedAt,
+      @Param("gapStart") LocalDateTime gapStart,
+      @Param("readdedAt") LocalDateTime readdedAt,
+      Pageable pageable);
 
   List<Message> findByConversationId(Long conversationId);
-
-  void deleteByConversationId(Long conversationId);
 }

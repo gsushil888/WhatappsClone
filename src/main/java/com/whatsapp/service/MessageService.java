@@ -40,24 +40,28 @@ public class MessageService {
 			Long afterMessageId, Map<String, String> deviceInfo,
 			Map<String, String> headers) {
 
-		conversationParticipantRepository
+		ConversationParticipant participant = conversationParticipantRepository
 				.findByConversationIdAndUserId(conversationId, userId)
-				.orElseThrow(
-						() -> new MessageException(ErrorCode.CONV_NOT_FOUND));
+				.orElseThrow(() -> new MessageException(ErrorCode.CONV_NOT_FOUND));
 
+		LocalDateTime clearedAt = participant.getClearedAt();
+		LocalDateTime removedAt = participant.getStatus() == ConversationParticipant.ParticipantStatus.REMOVED
+				? participant.getRemovedAt() : null;
+		LocalDateTime gapStart = participant.getGapStart();
+		LocalDateTime readdedAt = participant.getReaddedAt();
 		Pageable pageable = PageRequest.of(0, limit);
 		List<Message> messages;
 
 		if (beforeMessageId != null) {
 			messages = messageRepository.findMessagesBeforeId(conversationId,
-					beforeMessageId, pageable);
+					beforeMessageId, clearedAt, removedAt, gapStart, readdedAt, pageable);
 		} else if (afterMessageId != null) {
 			messages = messageRepository.findMessagesAfterId(conversationId,
-					afterMessageId, pageable);
+					afterMessageId, clearedAt, removedAt, gapStart, readdedAt, pageable);
 		} else {
 			messages = messageRepository
 					.findByConversationIdOrderByTimestampDesc(conversationId,
-							pageable);
+							clearedAt, removedAt, gapStart, readdedAt, pageable);
 		}
 
 		List<MessageDto.MessageResponse> messageResponses = messages.stream()
@@ -65,7 +69,7 @@ public class MessageService {
 				.collect(Collectors.toList());
 
 		long totalCount = messageRepository
-				.countByConversationId(conversationId);
+				.countByConversationId(conversationId, clearedAt, removedAt, gapStart, readdedAt);
 
 		boolean hasMore = messageResponses.size() == limit;
 		Long nextCursor = hasMore && !messageResponses.isEmpty()
@@ -91,6 +95,14 @@ public class MessageService {
 				.findById(conversationId).orElseThrow(
 						() -> new MessageException(ErrorCode.CONV_NOT_FOUND));
 
+		// Block REMOVED or LEFT participants from sending
+		ConversationParticipant senderParticipant = conversationParticipantRepository
+				.findByConversationIdAndUserId(conversationId, userId)
+				.orElseThrow(() -> new MessageException(ErrorCode.CONV_NOT_FOUND));
+		if (senderParticipant.getStatus() != ConversationParticipant.ParticipantStatus.ACTIVE) {
+			throw new MessageException(ErrorCode.MSG_SEND_FAILED);
+		}
+
 		Message replyToMessage = null;
 		if (request.getReplyToMessageId() != null) {
 			replyToMessage = messageRepository
@@ -109,6 +121,16 @@ public class MessageService {
 		message = messageRepository.save(message);
 		messageStatusRepository.createStatusForParticipants(message.getId());
 
+		// Re-surface only for INDIVIDUAL conversations where user deleted (LEFT)
+		// For GROUP: LEFT = voluntarily left, REMOVED = kicked — neither should be re-surfaced
+		if (conversation.getType() == Conversation.ConversationType.INDIVIDUAL) {
+			conversationParticipantRepository.findByConversationId(conversation.getId()).stream()
+					.filter(p -> p.getStatus() == ConversationParticipant.ParticipantStatus.LEFT)
+					.forEach(p -> {
+						p.setStatus(ConversationParticipant.ParticipantStatus.ACTIVE);
+						conversationParticipantRepository.save(p);
+					});
+		}
 		// Handle media attachment if present
 		if (request.getMediaUrl() != null && !request.getMediaUrl().isEmpty()) {
 			MessageAttachment attachment = MessageAttachment.builder()
@@ -227,10 +249,17 @@ public class MessageService {
 	@Transactional(readOnly = true)
 	public List<MessageDto.MessageResponse> searchMessages(Long userId,
 			Long conversationId, String query, int limit) {
+		ConversationParticipant searchParticipant = conversationParticipantRepository
+				.findByConversationIdAndUserId(conversationId, userId).orElse(null);
+		LocalDateTime clearedAt = searchParticipant != null ? searchParticipant.getClearedAt() : null;
+		LocalDateTime removedAt = searchParticipant != null
+				&& searchParticipant.getStatus() == ConversationParticipant.ParticipantStatus.REMOVED
+				? searchParticipant.getRemovedAt() : null;
+		LocalDateTime gapStart = searchParticipant != null ? searchParticipant.getGapStart() : null;
+		LocalDateTime readdedAt = searchParticipant != null ? searchParticipant.getReaddedAt() : null;
 		Pageable pageable = PageRequest.of(0, limit);
 		List<Message> messages = messageRepository
-				.searchInConversation(conversationId, query, pageable);
-
+				.searchInConversation(conversationId, query, clearedAt, removedAt, gapStart, readdedAt, pageable);
 		return messages.stream().map(msg -> mapToMessageResponse(msg, userId))
 				.collect(Collectors.toList());
 	}
@@ -354,10 +383,37 @@ public class MessageService {
 	public List<Long> markConversationAsRead(Long userId, Long conversationId) {
 		List<Long> senderIds = messageStatusRepository.findUnreadSenderIds(conversationId, userId);
 		messageStatusRepository.markAllAsRead(conversationId, userId, LocalDateTime.now());
-		List<Message> lastMessages = messageRepository.findLastMessageByConversationId(conversationId, PageRequest.of(0, 1));
+		LocalDateTime clearedAt = conversationParticipantRepository
+				.findByConversationIdAndUserId(conversationId, userId)
+				.map(ConversationParticipant::getClearedAt).orElse(null);
+		List<Message> lastMessages = messageRepository.findLastMessageByConversationId(conversationId, clearedAt, null, null, null, PageRequest.of(0, 1));
 		Long lastMessageId = lastMessages.isEmpty() ? null : lastMessages.get(0).getId();
 		conversationParticipantRepository.updateLastRead(conversationId, userId, LocalDateTime.now(), lastMessageId);
 		return senderIds;
+	}
+
+	// Returns map of senderId -> lastMessageId they sent that was just marked read
+	// Used by WebSocket to push exact messageId in the tick update to each sender
+	@Transactional
+	public Map<Long, Long> markConversationAsReadWithLastMessage(Long userId, Long conversationId) {
+		Map<Long, Long> senderLastMessageMap = messageStatusRepository
+				.findUnreadSenderLastMessageIds(conversationId, userId);
+		messageStatusRepository.markAllAsRead(conversationId, userId, LocalDateTime.now());
+		LocalDateTime clearedAt = conversationParticipantRepository
+				.findByConversationIdAndUserId(conversationId, userId)
+				.map(ConversationParticipant::getClearedAt).orElse(null);
+		List<Message> lastMessages = messageRepository.findLastMessageByConversationId(
+				conversationId, clearedAt, null, null, null, PageRequest.of(0, 1));
+		Long lastMessageId = lastMessages.isEmpty() ? null : lastMessages.get(0).getId();
+		conversationParticipantRepository.updateLastRead(conversationId, userId, LocalDateTime.now(), lastMessageId);
+		return senderLastMessageMap;
+	}
+
+	@Transactional(readOnly = true)
+	public Long getConversationIdByMessageId(Long messageId) {
+		return messageRepository.findById(messageId)
+				.map(m -> m.getConversation().getId())
+				.orElse(null);
 	}
 
 	@Transactional
@@ -375,6 +431,11 @@ public class MessageService {
 	}
 
 	@Transactional(readOnly = true)
+	public boolean isContact(Long viewerUserId, Long targetUserId) {
+		return contactRepository.findByUserIdAndContactUserId(viewerUserId, targetUserId).isPresent();
+	}
+
+	@Transactional(readOnly = true)
 	public String resolveSenderName(Long senderUserId, Long viewerUserId) {
 		User sender = userRepository.findById(senderUserId)
 				.orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
@@ -384,8 +445,7 @@ public class MessageService {
 	@Transactional(readOnly = true)
 	public List<Long> getAllParticipantIds(Long conversationId) {
 		return conversationParticipantRepository
-				.findByConversationIdAndStatus(conversationId,
-						ConversationParticipant.ParticipantStatus.ACTIVE)
+				.findByConversationIdAndStatus(conversationId, ConversationParticipant.ParticipantStatus.ACTIVE)
 				.stream().map(p -> p.getUser().getId())
 				.collect(Collectors.toList());
 	}
@@ -399,8 +459,67 @@ public class MessageService {
 	}
 
 	@Transactional(readOnly = true)
+	public boolean wasResurfaced(Long conversationId, Long userId) {
+		// A participant was re-surfaced if they were LEFT and just became ACTIVE again
+		// We detect this by checking: status=ACTIVE AND clearedAt is set AND leftAt was recently cleared
+		return conversationParticipantRepository
+				.findByConversationIdAndUserId(conversationId, userId)
+				.map(p -> p.getStatus() == ConversationParticipant.ParticipantStatus.ACTIVE
+						&& p.getClearedAt() != null
+						&& p.getLeftAt() == null) // leftAt cleared on re-surface
+				.orElse(false);
+	}
+
+	@Transactional(readOnly = true)
+	public boolean isNewConversationForParticipant(Long conversationId, Long participantId) {
+		// new-conversation fires when the conversation should appear fresh on participant's screen:
+		// case 1 — no messages exist before this one (truly first message ever)
+		// case 2 — participant had deleted/left (clearedAt set, leftAt cleared = re-surfaced)
+		return conversationParticipantRepository
+				.findByConversationIdAndUserId(conversationId, participantId)
+				.map(p -> {
+					boolean resurfaced = p.getStatus() == ConversationParticipant.ParticipantStatus.ACTIVE
+							&& p.getClearedAt() != null
+							&& p.getLeftAt() == null;
+					// count messages visible to this participant (respects clearedAt)
+					long visibleCount = messageRepository.countByConversationId(conversationId, p.getClearedAt(), null, null, null);
+					boolean firstEver = visibleCount == 1; // only the message just sent
+					return firstEver || resurfaced;
+				})
+				.orElse(false);
+	}
+
+	@Transactional(readOnly = true)
+	public String getConversationTitle(Long conversationId) {
+		return conversationRepository.findById(conversationId)
+				.map(c -> c.getName())
+				.orElse(null);
+	}
+
+	@Transactional(readOnly = true)
+	public String getConversationGroupImage(Long conversationId) {
+		return conversationRepository.findById(conversationId)
+				.map(c -> c.getGroupImageUrl())
+				.orElse(null);
+	}
+
+	@Transactional(readOnly = true)
+	public String getSenderProfilePicture(Long userId) {
+		return userRepository.findById(userId)
+				.map(User::getProfilePictureUrl)
+				.orElse(null);
+	}
+
+	@Transactional(readOnly = true)
+	public String getSenderMobileNumber(Long userId) {
+		return userRepository.findById(userId)
+				.map(User::getPhoneNumber)
+				.orElse(null);
+	}
+
+	@Transactional(readOnly = true)
 	public boolean isFirstMessage(Long conversationId) {
-		return messageRepository.countByConversationId(conversationId) == 1;
+		return messageRepository.countByConversationId(conversationId, null, null, null, null) == 1;
 	}
 
 	@Transactional(readOnly = true)
@@ -410,11 +529,9 @@ public class MessageService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<Long> getOtherParticipantIds(Long conversationId,
-			Long excludeUserId) {
+	public List<Long> getOtherParticipantIds(Long conversationId, Long excludeUserId) {
 		return conversationParticipantRepository
-				.findByConversationIdAndStatus(conversationId,
-						ConversationParticipant.ParticipantStatus.ACTIVE)
+				.findByConversationIdAndStatus(conversationId, ConversationParticipant.ParticipantStatus.ACTIVE)
 				.stream().map(p -> p.getUser().getId())
 				.filter(id -> !id.equals(excludeUserId))
 				.collect(Collectors.toList());
