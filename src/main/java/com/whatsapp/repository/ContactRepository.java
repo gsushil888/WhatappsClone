@@ -25,6 +25,11 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
       @Param("contactUserId") Long contactUserId);
 
   @Query("SELECT c FROM Contact c JOIN FETCH c.contactUser cu "
+      + "WHERE c.user.id = :userId AND cu.id IN :contactUserIds AND c.status = 'ACTIVE'")
+  List<Contact> findByUserIdAndContactUserIdIn(@Param("userId") Long userId,
+      @Param("contactUserIds") List<Long> contactUserIds);
+
+  @Query("SELECT c FROM Contact c JOIN FETCH c.contactUser cu "
       + "WHERE c.user.id = :userId AND c.status = 'ACTIVE' "
       + "AND (LOWER(c.displayName) LIKE LOWER(CONCAT('%', :query, '%')) "
       + "OR LOWER(cu.displayName) LIKE LOWER(CONCAT('%', :query, '%')) "
@@ -51,4 +56,7 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
       @Param("blocked") boolean blocked);
 
   boolean existsByUserIdAndContactUserId(Long userId, Long contactUserId);
+
+  @Query("SELECT c FROM Contact c WHERE c.user.id = :viewerId AND c.contactUser.id = :storyOwnerId AND c.status = 'ACTIVE'")
+  Optional<Contact> findByViewerIdAndStoryOwnerId(@Param("viewerId") Long viewerId, @Param("storyOwnerId") Long storyOwnerId);
 }

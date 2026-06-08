@@ -36,6 +36,8 @@ public class ConversationDto {
     private Boolean isOnline;
     private LocalDateTime lastActiveAt;
     private LocalDateTime createdAt;
+    private LocalDateTime removedAt;
+    private String removedByName;
   }
 
   @Data
@@ -129,6 +131,9 @@ public class ConversationDto {
     private Boolean isOnline;
     private LocalDateTime lastActiveAt;
     private LocalDateTime joinedAt;
+    private String addedByName;
+    private String removedByName;
+    private LocalDateTime removedAt;
   }
 
   @Data
@@ -175,6 +180,24 @@ public class ConversationDto {
     private Long fileSize;
     private LocalDateTime timestamp;
     private MessageSenderDto sender;
+    private List<MediaItemDto> items; // all attachments in this message (media group)
+  }
+
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public static class MediaItemDto {
+    private String url;
+    private String thumbnailUrl;
+    private String fileName;
+    private Long fileSize;
+    private String mimeType;
+    private Integer width;
+    private Integer height;
+    private Integer duration;
+    private String type;
   }
 
   @Data

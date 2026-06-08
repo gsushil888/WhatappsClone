@@ -1,6 +1,7 @@
 package com.whatsapp.interceptor;
 
 import java.util.Map;
+
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.lang.NonNull;
@@ -8,8 +9,9 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
+
 import com.whatsapp.util.JwtUtil;
-import com.whatsapp.util.RequestContext;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,10 +23,8 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 	private final JwtUtil jwtUtil;
 
 	@Override
-	public boolean beforeHandshake(@NonNull ServerHttpRequest request,
-			@NonNull ServerHttpResponse response,
-			@NonNull WebSocketHandler wsHandler,
-			@NonNull Map<String, Object> attributes) throws Exception {
+	public boolean beforeHandshake(@NonNull ServerHttpRequest request, @NonNull ServerHttpResponse response,
+			@NonNull WebSocketHandler wsHandler, @NonNull Map<String, Object> attributes) throws Exception {
 
 		try {
 			String token = extractToken(request);
@@ -55,14 +55,11 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 	}
 
 	@Override
-	public void afterHandshake(@NonNull ServerHttpRequest request,
-			@NonNull ServerHttpResponse response,
-			@NonNull WebSocketHandler wsHandler,
-			@Nullable Exception exception) {
+	public void afterHandshake(@NonNull ServerHttpRequest request, @NonNull ServerHttpResponse response,
+			@NonNull WebSocketHandler wsHandler, @Nullable Exception exception) {
 
 		if (exception != null) {
-			log.error("WebSocket handshake completed with error: {}",
-					exception.getMessage());
+			log.error("WebSocket handshake completed with error: {}", exception.getMessage());
 		} else {
 			log.debug("WebSocket handshake completed successfully");
 		}
@@ -95,8 +92,7 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 		}
 
 		// Try Sec-WebSocket-Protocol header (some clients send token here)
-		String protocol = request.getHeaders()
-				.getFirst("Sec-WebSocket-Protocol");
+		String protocol = request.getHeaders().getFirst("Sec-WebSocket-Protocol");
 		if (protocol != null && protocol.contains(",")) {
 			String[] protocols = protocol.split(",");
 			for (String p : protocols) {

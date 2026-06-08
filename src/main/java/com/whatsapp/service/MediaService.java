@@ -29,6 +29,32 @@ public class MediaService {
 	private String uploadDir;
 
 	@Transactional
+	public MediaDto.BatchUploadResponse uploadMultiple(Long userId, List<MultipartFile> files, Long conversationId) {
+		if (files == null || files.isEmpty()) {
+			throw new SystemException(ErrorCode.FILE_UPLOAD_FAILED);
+		}
+		if (files.size() > 30) {
+			throw new SystemException(ErrorCode.FILE_UPLOAD_FAILED);
+		}
+
+		List<MediaDto.MediaUploadResponse> uploaded = new ArrayList<>();
+		List<String> failed = new ArrayList<>();
+
+		for (MultipartFile file : files) {
+			try {
+				MediaDto.MediaUploadResponse response = uploadMedia(userId, file, null, conversationId, true, true);
+				uploaded.add(response);
+			} catch (Exception e) {
+				log.warn("Failed to upload file {}: {}", file.getOriginalFilename(), e.getMessage());
+				failed.add(file.getOriginalFilename());
+			}
+		}
+
+		return MediaDto.BatchUploadResponse.builder().files(uploaded).totalUploaded(uploaded.size())
+				.totalFailed(failed.size()).failedFileNames(failed.isEmpty() ? null : failed).build();
+	}
+
+	@Transactional
 	public MediaDto.MediaUploadResponse uploadMedia(Long userId, MultipartFile file, String type, Long conversationId,
 			boolean compress, boolean generateThumbnail) {
 
@@ -120,15 +146,15 @@ public class MediaService {
 	}
 
 	private void validateFile(MultipartFile file) {
-		// File size validation (10MB limit)
-		if (file.getSize() > 10 * 1024 * 1024) {
-			throw new SystemException(ErrorCode.FILE_SIZE_EXCEEDED);
-		}
-
-		// File type validation
 		String contentType = file.getContentType();
 		if (contentType == null || !isValidFileType(contentType)) {
 			throw new SystemException(ErrorCode.FILE_INVALID_TYPE);
+		}
+
+		// Videos allow up to 100MB, everything else 10MB
+		long maxSize = contentType.startsWith("video/") ? 100L * 1024 * 1024 : 10L * 1024 * 1024;
+		if (file.getSize() > maxSize) {
+			throw new SystemException(ErrorCode.FILE_SIZE_EXCEEDED);
 		}
 	}
 

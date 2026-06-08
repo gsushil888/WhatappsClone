@@ -195,6 +195,15 @@ public class AuthDto {
   @Builder
   @NoArgsConstructor
   @AllArgsConstructor
+  public static class GoogleLoginRequest {
+    @NotBlank(message = "Google ID token is required")
+    private String idToken;
+  }
+
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
   public static class SessionValidationResponse {
     private boolean valid;
     private Long userId;

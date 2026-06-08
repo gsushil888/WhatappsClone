@@ -58,4 +58,16 @@ public class MediaDto {
     private List<MediaResponse> media;
     private ApiResponse.PaginationInfo pagination;
   }
+
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public static class BatchUploadResponse {
+    private List<MediaUploadResponse> files;
+    private int totalUploaded;
+    private int totalFailed;
+    private List<String> failedFileNames;
+  }
 }

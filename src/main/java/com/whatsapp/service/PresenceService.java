@@ -23,222 +23,199 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PresenceService {
 
-    private final UserPresenceRepository presenceRepository;
-    private final UserRepository userRepository;
-    private final SimpMessagingTemplate messagingTemplate;
-    
-    @Autowired(required = false)
-    @Qualifier("redisObjectTemplate")
-    private RedisTemplate<String, Object> redisTemplate;
-    
-    private static final String PRESENCE_KEY = "presence:";
-    private static final String ONLINE_USERS_KEY = "online_users";
-    private static final String TYPING_KEY = "typing:";
-    private static final long PRESENCE_TIMEOUT = 30; // seconds
-    private static final long TYPING_TIMEOUT = 5; // seconds
+	private final UserPresenceRepository presenceRepository;
+	private final UserRepository userRepository;
+	private final SimpMessagingTemplate messagingTemplate;
 
-    @Transactional
-    public void setUserOnline(Long userId, String deviceInfo) {
-        if (redisTemplate != null) {
-            String key = PRESENCE_KEY + userId;
-            Map<String, Object> presenceData = Map.of(
-                "status", "ONLINE",
-                "lastSeen", LocalDateTime.now().toString(),
-                "deviceInfo", deviceInfo != null ? deviceInfo : ""
-            );
-            
-            redisTemplate.opsForHash().putAll(key, presenceData);
-            redisTemplate.expire(key, PRESENCE_TIMEOUT, TimeUnit.SECONDS);
-            redisTemplate.opsForSet().add(ONLINE_USERS_KEY, userId.toString());
-        }
+	@Autowired(required = false)
+	@Qualifier("redisObjectTemplate")
+	private RedisTemplate<String, Object> redisTemplate;
 
-        UserPresence presence = presenceRepository.findByUserId(userId)
-            .orElse(UserPresence.builder()
-                .userId(userId)
-                .build());
-                
-        presence.setStatus(UserPresence.Status.ONLINE);
-        presence.setLastOnline(LocalDateTime.now());
-        presence.setDeviceInfo(deviceInfo);
-        presenceRepository.save(presence);
+	private static final String PRESENCE_KEY = "presence:";
+	private static final String ONLINE_USERS_KEY = "online_users";
+	private static final String TYPING_KEY = "typing:";
+	private static final long PRESENCE_TIMEOUT = 30; // seconds
+	private static final long TYPING_TIMEOUT = 5; // seconds
 
-        // Update User.lastActiveAt and isOnline for conversations
-        userRepository.findById(userId).ifPresent(user -> {
-            user.setLastActiveAt(LocalDateTime.now());
-            user.setOnline(true);
-            userRepository.save(user);
-        });
+	@Transactional
+	public void setUserOnline(Long userId, String deviceInfo) {
+		if (redisTemplate != null) {
+			String key = PRESENCE_KEY + userId;
+			Map<String, Object> presenceData = Map.of("status", "ONLINE", "lastSeen", LocalDateTime.now().toString(),
+					"deviceInfo", deviceInfo != null ? deviceInfo : "");
 
-        broadcastPresenceUpdate(userId, "ONLINE", LocalDateTime.now());
-        log.info("User {} is now online", userId);
-    }
+			redisTemplate.opsForHash().putAll(key, presenceData);
+			redisTemplate.expire(key, PRESENCE_TIMEOUT, TimeUnit.SECONDS);
+			redisTemplate.opsForSet().add(ONLINE_USERS_KEY, userId.toString());
+		}
 
-    @Transactional
-    public void setUserOffline(Long userId) {
-        LocalDateTime now = LocalDateTime.now();
-        
-        if (redisTemplate != null) {
-            String key = PRESENCE_KEY + userId;
-            
-            Map<String, Object> presenceData = Map.of(
-                "status", "OFFLINE",
-                "lastSeen", now.toString()
-            );
-            
-            redisTemplate.opsForHash().putAll(key, presenceData);
-            redisTemplate.opsForSet().remove(ONLINE_USERS_KEY, userId.toString());
-        }
+		UserPresence presence = presenceRepository.findByUserId(userId)
+				.orElse(UserPresence.builder().userId(userId).build());
 
-        presenceRepository.findByUserId(userId).ifPresent(presence -> {
-            presence.setStatus(UserPresence.Status.OFFLINE);
-            presence.setLastSeen(now);
-            presenceRepository.save(presence);
-        });
+		presence.setStatus(UserPresence.Status.ONLINE);
+		presence.setLastOnline(LocalDateTime.now());
+		presence.setDeviceInfo(deviceInfo);
+		presenceRepository.save(presence);
 
-        // Update User.lastActiveAt and isOnline for conversations
-        userRepository.findById(userId).ifPresent(user -> {
-            user.setLastActiveAt(now);
-            user.setOnline(false);
-            userRepository.save(user);
-        });
+		// Update User.lastActiveAt and isOnline for conversations
+		userRepository.findById(userId).ifPresent(user -> {
+			user.setLastActiveAt(LocalDateTime.now());
+			user.setOnline(true);
+			userRepository.save(user);
+		});
 
-        broadcastPresenceUpdate(userId, "OFFLINE", now);
-        log.info("User {} is now offline", userId);
-    }
+		broadcastPresenceUpdate(userId, "ONLINE", LocalDateTime.now());
+		// log.info("User {} is now online", userId);
+	}
 
-    public void updateLastSeen(Long userId) {
-        if (redisTemplate != null) {
-            String key = PRESENCE_KEY + userId;
-            redisTemplate.opsForHash().put(key, "lastSeen", LocalDateTime.now().toString());
-            redisTemplate.expire(key, PRESENCE_TIMEOUT, TimeUnit.SECONDS);
-        }
-    }
+	@Transactional
+	public void setUserOffline(Long userId) {
+		LocalDateTime now = LocalDateTime.now();
 
-    public UserPresence.Status getUserStatus(Long userId) {
-        if (redisTemplate != null) {
-            String key = PRESENCE_KEY + userId;
-            String status = (String) redisTemplate.opsForHash().get(key, "status");
-            
-            if (status != null) {
-                return UserPresence.Status.valueOf(status);
-            }
-        }
-        
-        return presenceRepository.findByUserId(userId)
-            .map(UserPresence::getStatus)
-            .orElse(UserPresence.Status.OFFLINE);
-    }
+		if (redisTemplate != null) {
+			String key = PRESENCE_KEY + userId;
 
-    public LocalDateTime getLastSeen(Long userId, Long requesterId) {
-        if (!canViewLastSeen(userId, requesterId)) {
-            return null;
-        }
-        
-        if (redisTemplate != null) {
-            String key = PRESENCE_KEY + userId;
-            String lastSeenStr = (String) redisTemplate.opsForHash().get(key, "lastSeen");
-            
-            if (lastSeenStr != null) {
-                return LocalDateTime.parse(lastSeenStr);
-            }
-        }
-        
-        return presenceRepository.findByUserId(userId)
-            .map(UserPresence::getLastSeen)
-            .orElse(null);
-    }
+			Map<String, Object> presenceData = Map.of("status", "OFFLINE", "lastSeen", now.toString());
 
-    public List<Long> getOnlineUsers() {
-        if (redisTemplate != null) {
-            return redisTemplate.opsForSet().members(ONLINE_USERS_KEY)
-                .stream()
-                .map(obj -> Long.valueOf(obj.toString()))
-                .toList();
-        }
-        
-        return presenceRepository.findOnlineUsers()
-            .stream()
-            .map(UserPresence::getUserId)
-            .toList();
-    }
+			redisTemplate.opsForHash().putAll(key, presenceData);
+			redisTemplate.opsForSet().remove(ONLINE_USERS_KEY, userId.toString());
+		}
 
-    public Map<String, Object> getPresenceInfo(Long userId, Long requesterId) {
-        UserPresence.Status status = getUserStatus(userId);
-        LocalDateTime lastSeen = getLastSeen(userId, requesterId);
-        
-        return Map.of(
-            "userId", userId,
-            "status", status.name(),
-            "lastSeen", lastSeen != null ? lastSeen.toString() : null,
-            "isOnline", status == UserPresence.Status.ONLINE
-        );
-    }
+		presenceRepository.findByUserId(userId).ifPresent(presence -> {
+			presence.setStatus(UserPresence.Status.OFFLINE);
+			presence.setLastSeen(now);
+			presenceRepository.save(presence);
+		});
 
-    private void broadcastPresenceUpdate(Long userId, String status, LocalDateTime timestamp) {
-        Map<String, Object> update = Map.of(
-            "userId", userId,
-            "status", status,
-            "timestamp", timestamp.toString(),
-            "lastSeen", timestamp.toString()
-        );
-        
-        // Broadcast to all users who have this user in their contacts
-        messagingTemplate.convertAndSend("/topic/presence", update);
-    }
+		// Update User.lastActiveAt and isOnline for conversations
+		userRepository.findById(userId).ifPresent(user -> {
+			user.setLastActiveAt(now);
+			user.setOnline(false);
+			userRepository.save(user);
+		});
 
-    private boolean canViewLastSeen(Long userId, Long requesterId) {
-        if (userId.equals(requesterId)) {
-            return true;
-        }
-        
-        return presenceRepository.findByUserId(userId)
-            .map(UserPresence::isShowLastSeen)
-            .orElse(true);
-    }
+		broadcastPresenceUpdate(userId, "OFFLINE", now);
+		//log.info("User {} is now offline", userId);
+	}
 
-    public void cleanupOfflineUsers() {
-        if (redisTemplate != null) {
-            List<Long> onlineUsers = getOnlineUsers();
-            for (Long userId : onlineUsers) {
-                String key = PRESENCE_KEY + userId;
-                if (!redisTemplate.hasKey(key)) {
-                    setUserOffline(userId);
-                }
-            }
-        }
-    }
+	public void updateLastSeen(Long userId) {
+		if (redisTemplate != null) {
+			String key = PRESENCE_KEY + userId;
+			redisTemplate.opsForHash().put(key, "lastSeen", LocalDateTime.now().toString());
+			redisTemplate.expire(key, PRESENCE_TIMEOUT, TimeUnit.SECONDS);
+		}
+	}
 
-    public void setUserTyping(Long userId, Long conversationId) {
-        if (redisTemplate != null) {
-            String key = TYPING_KEY + conversationId + ":" + userId;
-            redisTemplate.opsForValue().set(key, LocalDateTime.now().toString(), TYPING_TIMEOUT, TimeUnit.SECONDS);
-        }
-        
-        Map<String, Object> typingUpdate = Map.of(
-            "userId", userId,
-            "conversationId", conversationId,
-            "action", "start",
-            "timestamp", System.currentTimeMillis()
-        );
-        
-        messagingTemplate.convertAndSend("/topic/conversation/" + conversationId + "/typing", typingUpdate);
-        log.debug("User {} started typing in conversation {}", userId, conversationId);
-    }
+	public UserPresence.Status getUserStatus(Long userId) {
+		if (redisTemplate != null) {
+			String key = PRESENCE_KEY + userId;
+			String status = (String) redisTemplate.opsForHash().get(key, "status");
 
-    public void setUserStoppedTyping(Long userId, Long conversationId) {
-        if (redisTemplate != null) {
-            String key = TYPING_KEY + conversationId + ":" + userId;
-            redisTemplate.delete(key);
-        }
-        
-        Map<String, Object> typingUpdate = Map.of(
-            "userId", userId,
-            "conversationId", conversationId,
-            "action", "stop",
-            "timestamp", System.currentTimeMillis()
-        );
-        
-        messagingTemplate.convertAndSend("/topic/conversation/" + conversationId + "/typing", typingUpdate);
-        log.debug("User {} stopped typing in conversation {}", userId, conversationId);
-    }
+			if (status != null) {
+				return UserPresence.Status.valueOf(status);
+			}
+		}
+
+		return presenceRepository.findByUserId(userId).map(UserPresence::getStatus).orElse(UserPresence.Status.OFFLINE);
+	}
+
+	public LocalDateTime getLastSeen(Long userId, Long requesterId) {
+		if (!canViewLastSeen(userId, requesterId)) {
+			return null;
+		}
+
+		if (redisTemplate != null) {
+			String key = PRESENCE_KEY + userId;
+			String lastSeenStr = (String) redisTemplate.opsForHash().get(key, "lastSeen");
+
+			if (lastSeenStr != null) {
+				return LocalDateTime.parse(lastSeenStr);
+			}
+		}
+
+		return presenceRepository.findByUserId(userId).map(UserPresence::getLastSeen).orElse(null);
+	}
+
+	public List<Long> getOnlineUsers() {
+		if (redisTemplate != null) {
+			return redisTemplate.opsForSet().members(ONLINE_USERS_KEY).stream().map(obj -> Long.valueOf(obj.toString()))
+					.toList();
+		}
+
+		return presenceRepository.findOnlineUsers().stream().map(UserPresence::getUserId).toList();
+	}
+
+	public Map<String, Object> getPresenceInfo(Long userId, Long requesterId) {
+		UserPresence.Status status = getUserStatus(userId);
+		LocalDateTime lastSeen = getLastSeen(userId, requesterId);
+
+		return Map.of("userId", userId, "status", status.name(), "lastSeen",
+				lastSeen != null ? lastSeen.toString() : null, "isOnline", status == UserPresence.Status.ONLINE);
+	}
+
+	private void broadcastPresenceUpdate(Long userId, String status, LocalDateTime timestamp) {
+		Map<String, Object> update = Map.of("userId", userId, "status", status, "timestamp", timestamp.toString(),
+				"lastSeen", timestamp.toString());
+
+		// Broadcast to all users who have this user in their contacts
+		messagingTemplate.convertAndSend("/topic/presence", update);
+	}
+
+	private boolean canViewLastSeen(Long userId, Long requesterId) {
+		if (userId.equals(requesterId)) {
+			return true;
+		}
+
+		return presenceRepository.findByUserId(userId).map(UserPresence::isShowLastSeen).orElse(true);
+	}
+
+	public void cleanupOfflineUsers() {
+		if (redisTemplate != null) {
+			List<Long> onlineUsers = getOnlineUsers();
+			for (Long userId : onlineUsers) {
+				String key = PRESENCE_KEY + userId;
+				if (!redisTemplate.hasKey(key)) {
+					setUserOffline(userId);
+				}
+			}
+		}
+	}
+
+	public record TypingParticipantInfo(String displayName, String mobileNumber, boolean isContact) {
+	}
+
+	public void setUserTyping(Long userId, Long conversationId, Map<Long, TypingParticipantInfo> participantInfoMap) {
+		if (redisTemplate != null) {
+			String key = TYPING_KEY + conversationId + ":" + userId;
+			redisTemplate.opsForValue().set(key, LocalDateTime.now().toString(), TYPING_TIMEOUT, TimeUnit.SECONDS);
+		}
+		sendTypingEvent(userId, conversationId, "start", participantInfoMap);
+		log.debug("User {} started typing in conversation {}", userId, conversationId);
+	}
+
+	public void setUserStoppedTyping(Long userId, Long conversationId,
+			Map<Long, TypingParticipantInfo> participantInfoMap) {
+		if (redisTemplate != null) {
+			String key = TYPING_KEY + conversationId + ":" + userId;
+			redisTemplate.delete(key);
+		}
+		sendTypingEvent(userId, conversationId, "stop", participantInfoMap);
+		log.debug("User {} stopped typing in conversation {}", userId, conversationId);
+	}
+
+	private void sendTypingEvent(Long userId, Long conversationId, String action,
+			Map<Long, TypingParticipantInfo> participantInfoMap) {
+		participantInfoMap.forEach((participantId, info) -> {
+			Map<String, Object> typingUpdate = new java.util.HashMap<>();
+			typingUpdate.put("userId", userId);
+			typingUpdate.put("displayName", info.displayName());
+			typingUpdate.put("mobileNumber", info.mobileNumber());
+			typingUpdate.put("isContact", info.isContact());
+			typingUpdate.put("conversationId", conversationId);
+			typingUpdate.put("action", action);
+			typingUpdate.put("timestamp", System.currentTimeMillis());
+			messagingTemplate.convertAndSendToUser(participantId.toString(),
+					"/queue/conversation/" + conversationId + "/typing", typingUpdate);
+		});
+	}
 }

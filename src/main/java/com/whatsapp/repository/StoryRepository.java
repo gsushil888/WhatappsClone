@@ -17,20 +17,25 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
 
   @Query("SELECT s FROM Story s JOIN FETCH s.user u "
       + "LEFT JOIN Contact c ON c.contactUser.id = u.id AND c.user.id = :userId "
-      + "WHERE s.expiresAt > CURRENT_TIMESTAMP " + "AND (s.privacy = 'PUBLIC' OR "
-      + "     (s.privacy = 'CONTACTS' AND c.id IS NOT NULL) OR " + "     s.user.id = :userId) "
+      + "WHERE s.isActive = true AND s.expiresAt > CURRENT_TIMESTAMP "
+      + "AND (s.privacy = 'PUBLIC' OR "
+      + "     (s.privacy = 'CONTACTS' AND c.id IS NOT NULL) OR "
+      + "     s.user.id = :userId) "
       + "ORDER BY s.createdAt DESC")
   List<Story> findStoryFeed(@Param("userId") Long userId, Pageable pageable);
 
-  @Query("SELECT s FROM Story s " + "WHERE s.user.id = :userId " + "ORDER BY s.createdAt DESC")
+  @Query("SELECT s FROM Story s WHERE s.user.id = :userId AND s.isActive = true ORDER BY s.createdAt DESC")
   List<Story> findUserStories(@Param("userId") Long userId, Pageable pageable);
 
-  @Query("SELECT s FROM Story s " + "WHERE s.id = :storyId AND s.user.id = :userId")
+  @Query("SELECT s FROM Story s WHERE s.id = :storyId AND s.user.id = :userId AND s.isActive = true")
   Optional<Story> findByIdAndUserId(@Param("storyId") Long storyId, @Param("userId") Long userId);
 
   @Query("SELECT s FROM Story s JOIN FETCH s.views sv "
       + "WHERE s.id = :storyId AND s.user.id = :userId")
   Optional<Story> findWithViews(@Param("storyId") Long storyId, @Param("userId") Long userId);
+
+  @Query("SELECT s.id FROM Story s WHERE s.expiresAt < CURRENT_TIMESTAMP")
+  List<Long> findExpiredStoryIds();
 
   @Modifying
   @Query("DELETE FROM Story s WHERE s.expiresAt < CURRENT_TIMESTAMP")

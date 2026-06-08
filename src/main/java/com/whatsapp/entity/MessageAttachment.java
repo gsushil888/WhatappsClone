@@ -38,6 +38,10 @@ public class MessageAttachment {
   private Integer duration;
   private String metadata;
 
+  @Column(name = "sort_order")
+  @Builder.Default
+  private Integer sortOrder = 0;
+
   @CreationTimestamp
   private LocalDateTime createdAt;
 

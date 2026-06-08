@@ -12,6 +12,10 @@ import java.util.Optional;
 @Repository
 public interface MessageReactionRepository extends JpaRepository<MessageReaction, Long> {
 
+  @Query("SELECT mr FROM MessageReaction mr JOIN FETCH mr.user JOIN FETCH mr.message "
+      + "WHERE mr.message.id IN :messageIds ORDER BY mr.createdAt ASC")
+  List<MessageReaction> findByMessageIdIn(@Param("messageIds") List<Long> messageIds);
+
   @Query("SELECT mr FROM MessageReaction mr JOIN FETCH mr.user "
       + "WHERE mr.message.id = :messageId " + "ORDER BY mr.createdAt ASC")
   List<MessageReaction> findByMessageId(@Param("messageId") Long messageId);

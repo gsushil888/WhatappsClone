@@ -16,37 +16,35 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-  private final WebSocketAuthInterceptor webSocketAuthInterceptor;
-  private final WebSocketChannelInterceptor webSocketChannelInterceptor;
+	private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+	private final WebSocketChannelInterceptor webSocketChannelInterceptor;
 
-  @Override
-  public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
-    config.enableSimpleBroker("/topic", "/queue");
-    config.setApplicationDestinationPrefixes("/app");
-    config.setUserDestinationPrefix("/user");
-  }
+	@Override
+	public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
+		config.enableSimpleBroker("/topic", "/queue");
+		config.setApplicationDestinationPrefixes("/app");
+		config.setUserDestinationPrefix("/user");
+	}
 
-  @Override
-  public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
-    registration.interceptors(webSocketChannelInterceptor);
-  }
+	@Override
+	public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
+		registration.interceptors(webSocketChannelInterceptor);
+	}
 
-  @Override
-  public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
-    // Main WebSocket endpoint with SockJS
-    registry.addEndpoint("/ws").setAllowedOriginPatterns("*")
-        .addInterceptors(webSocketAuthInterceptor).withSockJS();
+	@Override
+	public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
+		// Main WebSocket endpoint with SockJS
+		registry.addEndpoint("/ws").setAllowedOriginPatterns("*").addInterceptors(webSocketAuthInterceptor)
+				.withSockJS();
 
-    // Main WebSocket endpoint without SockJS
-    registry.addEndpoint("/ws").setAllowedOriginPatterns("*")
-        .addInterceptors(webSocketAuthInterceptor);
+		// Main WebSocket endpoint without SockJS
+		registry.addEndpoint("/ws").setAllowedOriginPatterns("*").addInterceptors(webSocketAuthInterceptor);
 
-    // STOMP WebSocket endpoint with SockJS
-    registry.addEndpoint("/ws/stomp").setAllowedOriginPatterns("*")
-        .addInterceptors(webSocketAuthInterceptor).withSockJS();
+		// STOMP WebSocket endpoint with SockJS
+		registry.addEndpoint("/ws/stomp").setAllowedOriginPatterns("*").addInterceptors(webSocketAuthInterceptor)
+				.withSockJS();
 
-    // STOMP WebSocket endpoint without SockJS
-    registry.addEndpoint("/ws/stomp").setAllowedOriginPatterns("*")
-        .addInterceptors(webSocketAuthInterceptor);
-  }
+		// STOMP WebSocket endpoint without SockJS
+		registry.addEndpoint("/ws/stomp").setAllowedOriginPatterns("*").addInterceptors(webSocketAuthInterceptor);
+	}
 }
