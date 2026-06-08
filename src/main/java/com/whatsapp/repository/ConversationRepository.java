@@ -19,6 +19,8 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
       + "  OR (p.status = 'LEFT' AND EXISTS (SELECT m FROM Message m WHERE m.conversation.id = c.id AND m.isDeleted = false AND m.createdAt > p.clearedAt)) "
       + "  OR (p.status = 'REMOVED' AND c.type = 'GROUP')) "
       + "AND (p.isArchived = false OR p.isArchived IS NULL) "
+      + "AND (c.type != 'INDIVIDUAL' OR c.createdBy.id = :userId "
+      + "  OR EXISTS (SELECT m FROM Message m WHERE m.conversation.id = c.id AND m.isDeleted = false AND (p.clearedAt IS NULL OR m.createdAt > p.clearedAt))) "
       + "ORDER BY c.updatedAt DESC, c.createdAt DESC")
   List<Conversation> findUserConversations(@Param("userId") Long userId, Pageable pageable);
 
@@ -61,6 +63,6 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
       @Param("userId2") Long userId2);
 
   @Query("SELECT COUNT(DISTINCT c) FROM Conversation c " + "JOIN c.participants p "
-      + "WHERE p.user.id = :userId AND p.status = 'ACTIVE'")
+      + "WHERE p.user.id = :userId AND p.status = 'ACTIVE'" +"AND p.isArchived = false")
   long countUserConversations(@Param("userId") Long userId);
 }

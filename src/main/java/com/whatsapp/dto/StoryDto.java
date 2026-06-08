@@ -25,7 +25,16 @@ public class StoryDto {
     private String userAvatar;
     private String content;
     private String mediaUrl;
+    private String thumbnailUrl;
     private String storyType;
+    // TEXT story
+    private String backgroundColor;
+    private String textStyle;
+    // LINK story
+    private String linkUrl;
+    private String linkTitle;
+    private String linkDescription;
+    private String linkPreviewImage;
     private LocalDateTime createdAt;
     private Integer viewCount;
     private Boolean isViewed;
@@ -40,19 +49,31 @@ public class StoryDto {
   @AllArgsConstructor
   public static class PostStoryRequest {
     @NotBlank(message = "Story type is required")
-    private String storyType; // TEXT, IMAGE, VIDEO
+    private String storyType; // TEXT, IMAGE, VIDEO, LINK
 
     @Size(max = 1000, message = "Content cannot exceed 1000 characters")
     private String content;
 
+    // IMAGE / VIDEO
     private String mediaUrl;
+    private String thumbnailUrl;
     private MessageDto.MediaMetadata mediaMetadata;
 
-    @NotBlank(message = "Privacy setting is required")
-    private String privacySetting; // ALL_CONTACTS, CLOSE_FRIENDS, CUSTOM
+    // TEXT story styling
+    private String backgroundColor; // hex e.g. "#075E54"
+    private String textStyle;       // NORMAL, BOLD, ITALIC, HANDWRITING
 
-    private List<Long> allowedViewerIds; // For CUSTOM privacy
-    private List<Long> blockedViewerIds; // Users who cannot see this story
+    // LINK story
+    private String linkUrl;
+    private String linkTitle;
+    private String linkDescription;
+    private String linkPreviewImage;
+
+    @NotBlank(message = "Privacy setting is required")
+    private String privacySetting; // PUBLIC, CONTACTS, CLOSE_FRIENDS, CUSTOM
+
+    private List<Long> allowedViewerIds;
+    private List<Long> blockedViewerIds;
   }
 
   @Data

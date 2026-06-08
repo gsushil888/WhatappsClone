@@ -26,12 +26,9 @@ public class WebSocketChannelInterceptor implements ExecutorChannelInterceptor {
 	private final JwtUtil jwtUtil;
 
 	@Override
-	public Message<?> preSend(@NonNull Message<?> message,
-			@NonNull MessageChannel channel) {
-		StompHeaderAccessor accessor = MessageHeaderAccessor
-				.getAccessor(message, StompHeaderAccessor.class);
-		if (accessor == null
-				|| accessor.getCommand() == StompCommand.DISCONNECT) {
+	public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
+		StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+		if (accessor == null || accessor.getCommand() == StompCommand.DISCONNECT) {
 			return message;
 		}
 
@@ -48,50 +45,41 @@ public class WebSocketChannelInterceptor implements ExecutorChannelInterceptor {
 				sessionIdStr = sid.toString();
 		}
 
-		if (userIdStr == null
-				&& accessor.getCommand() == StompCommand.CONNECT) {
+		if (userIdStr == null && accessor.getCommand() == StompCommand.CONNECT) {
 			String authHeader = accessor.getFirstNativeHeader("Authorization");
 			if (authHeader != null && authHeader.startsWith("Bearer ")) {
 				try {
 					String token = authHeader.substring(7);
 					if (jwtUtil.validateToken(token)) {
-						userIdStr = String
-								.valueOf(jwtUtil.getUserIdFromToken(token));
+						userIdStr = String.valueOf(jwtUtil.getUserIdFromToken(token));
 						sessionIdStr = jwtUtil.getSessionIdFromToken(token);
 						if (sessionAttributes != null) {
-							sessionAttributes.put("userId",
-									Long.parseLong(userIdStr));
+							sessionAttributes.put("userId", Long.parseLong(userIdStr));
 							sessionAttributes.put("sessionId", sessionIdStr);
 						}
 					}
 				} catch (Exception e) {
-					log.warn("Failed to extract userId from CONNECT token: {}",
-							e.getMessage());
+					log.warn("Failed to extract userId from CONNECT token: {}", e.getMessage());
 				}
 			}
 		}
 
 		if (userIdStr != null) {
-			UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-					userIdStr, null, Collections.singletonList(
-							new SimpleGrantedAuthority("ROLE_USER")));
+			UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userIdStr,
+					null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
 			accessor.setUser(authentication);
-			SecurityContextHolder.getContext()
-					.setAuthentication(authentication);
+			SecurityContextHolder.getContext().setAuthentication(authentication);
 		} else {
-			log.warn("No userId found for WebSocket command: {}",
-					accessor.getCommand());
+			log.warn("No userId found for WebSocket command: {}", accessor.getCommand());
 		}
 
 		return message;
 	}
 
 	// Runs on the actual handler thread — correct place to set MDC
-	public Message<?> beforeHandle(@NonNull Message<?> message,
-			@NonNull MessageChannel channel,
+	public Message<?> beforeHandle(@NonNull Message<?> message, @NonNull MessageChannel channel,
 			@NonNull java.util.concurrent.Executor executor) {
-		StompHeaderAccessor accessor = MessageHeaderAccessor
-				.getAccessor(message, StompHeaderAccessor.class);
+		StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 		if (accessor != null) {
 			var sessionAttributes = accessor.getSessionAttributes();
 			if (sessionAttributes != null) {
@@ -100,8 +88,7 @@ public class WebSocketChannelInterceptor implements ExecutorChannelInterceptor {
 				if (uid != null) {
 					MDC.put("userId", uid.toString());
 					MDC.put("sessionId", sid != null ? sid.toString() : "");
-					MDC.put("correlationId", "req_" + UUID.randomUUID()
-							.toString().replace("-", "").substring(0, 12));
+					MDC.put("correlationId", "req_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
 				}
 			}
 		}
@@ -109,10 +96,8 @@ public class WebSocketChannelInterceptor implements ExecutorChannelInterceptor {
 	}
 
 	@Override
-	public void afterMessageHandled(@NonNull Message<?> message,
-			@NonNull MessageChannel channel,
-			@NonNull org.springframework.messaging.MessageHandler handler,
-			Exception ex) {
+	public void afterMessageHandled(@NonNull Message<?> message, @NonNull MessageChannel channel,
+			@NonNull org.springframework.messaging.MessageHandler handler, Exception ex) {
 		MDC.clear();
 	}
 }

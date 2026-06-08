@@ -13,9 +13,20 @@ import java.util.List;
 @Repository
 public interface MessageStatusRepository extends JpaRepository<MessageStatus, Long> {
 
+  @Query("SELECT ms FROM MessageStatus ms JOIN FETCH ms.user JOIN FETCH ms.message "
+      + "WHERE ms.message.id IN :messageIds ORDER BY ms.timestamp DESC")
+  List<MessageStatus> findByMessageIdIn(@Param("messageIds") List<Long> messageIds);
+
   @Query("SELECT ms FROM MessageStatus ms JOIN FETCH ms.user " + "WHERE ms.message.id = :messageId "
       + "ORDER BY ms.timestamp DESC")
   List<MessageStatus> findByMessageId(@Param("messageId") Long messageId);
+
+  @Query("SELECT ms.message.conversation.id, COUNT(ms) FROM MessageStatus ms "
+      + "WHERE ms.message.conversation.id IN :conversationIds AND ms.user.id = :userId "
+      + "AND ms.status IN ('SENT', 'DELIVERED') AND ms.message.sender.id != :userId "
+      + "GROUP BY ms.message.conversation.id")
+  List<Object[]> countUnreadMessagesPerConversation(@Param("conversationIds") List<Long> conversationIds,
+      @Param("userId") Long userId);
 
   @Query("SELECT COUNT(ms) FROM MessageStatus ms "
       + "WHERE ms.message.conversation.id = :conversationId " + "AND ms.user.id = :userId "

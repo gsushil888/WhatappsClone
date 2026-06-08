@@ -34,6 +34,16 @@ public class Story {
   private String mediaUrl;
   private String thumbnailUrl;
 
+  // TEXT story styling
+  private String backgroundColor;
+  private String textStyle;
+
+  // LINK story metadata
+  private String linkUrl;
+  private String linkTitle;
+  private String linkDescription;
+  private String linkPreviewImage;
+
   @Enumerated(EnumType.STRING)
   @Builder.Default
   private StoryPrivacy privacy = StoryPrivacy.CONTACTS;
@@ -56,7 +66,7 @@ public class Story {
   private LocalDateTime updatedAt;
 
   public enum StoryType {
-    TEXT, IMAGE, VIDEO
+    TEXT, IMAGE, VIDEO, LINK
   }
   public enum StoryPrivacy {
     PUBLIC, CONTACTS, CLOSE_FRIENDS, CUSTOM

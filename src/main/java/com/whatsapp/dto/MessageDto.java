@@ -28,6 +28,7 @@ public class MessageDto {
     private String messageType;
     private String mediaUrl;
     private MediaMetadata mediaMetadata;
+    private List<AttachmentInfo> attachments;
     private LocationData location;
     private Long replyToMessageId;
     private MessageResponse replyToMessage;
@@ -52,8 +53,26 @@ public class MessageDto {
 
     private String mediaUrl;
     private MediaMetadata mediaMetadata;
+    private List<AttachmentInfo> attachments;
     private LocationData location;
     private Long replyToMessageId;
+  }
+
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public static class AttachmentInfo {
+    private String fileUrl;
+    private String fileName;
+    private Long fileSize;
+    private String mimeType;
+    private Integer width;
+    private Integer height;
+    private Integer duration;
+    private String thumbnailUrl;
+    private String type; // IMAGE, VIDEO, AUDIO, DOCUMENT
   }
 
   @Data
