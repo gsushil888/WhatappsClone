@@ -211,9 +211,11 @@ public class WebSocketMessageController {
 			if ("add".equals(reactionUpdate.getAction())) {
 				MessageDto.AddReactionRequest request = new MessageDto.AddReactionRequest();
 				request.setEmoji(reactionUpdate.getEmoji());
+				request.setAttachmentId(reactionUpdate.getAttachmentId());
 				messageService.addReaction(userId, reactionUpdate.getMessageId(), request);
 			} else if ("remove".equals(reactionUpdate.getAction())) {
-				messageService.removeReaction(userId, reactionUpdate.getMessageId(), reactionUpdate.getEmoji());
+				messageService.removeReaction(userId, reactionUpdate.getMessageId(), reactionUpdate.getEmoji(),
+						reactionUpdate.getAttachmentId());
 			}
 
 			// Send personalized reaction update to each participant (correct
@@ -228,6 +230,7 @@ public class WebSocketMessageController {
 				personalizedReaction.put("action", reactionUpdate.getAction());
 				personalizedReaction.put("reactorId", userId);
 				personalizedReaction.put("reactorName", reactorName);
+				personalizedReaction.put("attachmentId", reactionUpdate.getAttachmentId()); // null = message-level
 				messagingTemplate.convertAndSendToUser(participantId.toString(),
 						"/queue/reaction/" + reactionUpdate.getConversationId(), personalizedReaction);
 			}
@@ -332,6 +335,7 @@ public class WebSocketMessageController {
 		private Long conversationId;
 		private String emoji;
 		private String action; // add, remove
+		private Long attachmentId; // null = message-level, non-null = specific attachment
 	}
 
 	@Data

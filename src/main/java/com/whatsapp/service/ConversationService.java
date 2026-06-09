@@ -741,6 +741,10 @@ public class ConversationService {
 							.items(items).build();
 				}).collect(Collectors.toList());
 
+		int mediaCount = mediaList.stream()
+				.mapToInt(m -> m.getItems() != null ? m.getItems().size() : 1)
+				.sum();
+
 		return ConversationDto.ConversationDetailsResponse.builder().id(conversation.getId())
 				.title(conversation.getName()).type(conversation.getType().name())
 				.description(conversation.getDescription()).groupPictureUrl(conversation.getGroupImageUrl())
@@ -750,7 +754,8 @@ public class ConversationService {
 						.profilePictureUrl(conversation.getCreatedBy().getProfilePictureUrl()).build())
 				.participants(
 						participants.stream().map(p -> mapToParticipantDto(p, userId)).collect(Collectors.toList()))
-				.settings(settings).mobileNumber(mobileNumber).participantCount(participantCount).media(mediaList)
+				.settings(settings).mobileNumber(mobileNumber).participantCount(participantCount)
+				.media(mediaList).mediaCount(mediaCount)
 				.build();
 	}
 

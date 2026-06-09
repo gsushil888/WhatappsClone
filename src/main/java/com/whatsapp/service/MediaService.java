@@ -31,10 +31,11 @@ public class MediaService {
 	@Transactional
 	public MediaDto.BatchUploadResponse uploadMultiple(Long userId, List<MultipartFile> files, Long conversationId) {
 		if (files == null || files.isEmpty()) {
-			throw new SystemException(ErrorCode.FILE_UPLOAD_FAILED);
+			throw new SystemException(ErrorCode.FILE_UPLOAD_FAILED, "No files provided for upload");
 		}
 		if (files.size() > 30) {
-			throw new SystemException(ErrorCode.FILE_UPLOAD_FAILED);
+			throw new SystemException(ErrorCode.FILE_UPLOAD_FAILED,
+					"Batch upload limit exceeded: maximum 30 files allowed, received " + files.size());
 		}
 
 		List<MediaDto.MediaUploadResponse> uploaded = new ArrayList<>();
@@ -96,33 +97,25 @@ public class MediaService {
 	public MediaDto.MediaResponse getMedia(Long userId, String mediaId) {
 		try {
 			Path uploadsDir = Paths.get(uploadDir);
-			
+
 			// Find file with matching fileId prefix
 			Path[] matchingFiles = Files.list(uploadsDir)
-					.filter(path -> path.getFileName().toString().startsWith(mediaId))
-					.toArray(Path[]::new);
-			
+					.filter(path -> path.getFileName().toString().startsWith(mediaId)).toArray(Path[]::new);
+
 			if (matchingFiles.length == 0) {
 				throw new SystemException(ErrorCode.FILE_NOT_FOUND);
 			}
-			
+
 			Path filePath = matchingFiles[0];
 			String fullFileName = filePath.getFileName().toString();
 			String originalFileName = fullFileName.substring(fullFileName.indexOf("_") + 1);
 			long fileSize = Files.size(filePath);
 			String mimeType = Files.probeContentType(filePath);
-			
-			return MediaDto.MediaResponse.builder()
-					.fileId(mediaId)
-					.fileName(originalFileName)
-					.fileUrl("/assets/" + fullFileName)
-					.fileSize(fileSize)
-					.mimeType(mimeType)
-					.mediaType(getMediaType(mimeType))
-					.uploadedBy(userId)
-					.uploadedAt(LocalDateTime.now())
-					.build();
-					
+
+			return MediaDto.MediaResponse.builder().fileId(mediaId).fileName(originalFileName)
+					.fileUrl("/assets/" + fullFileName).fileSize(fileSize).mimeType(mimeType)
+					.mediaType(getMediaType(mimeType)).uploadedBy(userId).uploadedAt(LocalDateTime.now()).build();
+
 		} catch (IOException e) {
 			log.error("Failed to get media: {}", e.getMessage());
 			throw new SystemException(ErrorCode.FILE_NOT_FOUND);
@@ -176,16 +169,21 @@ public class MediaService {
 	}
 
 	private String sanitizeFileName(String fileName) {
-		if (fileName == null) return "file";
+		if (fileName == null)
+			return "file";
 		// Remove path traversal attempts and dangerous characters
 		return fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
 	}
-	
+
 	private String getMediaType(String mimeType) {
-		if (mimeType == null) return "FILE";
-		if (mimeType.startsWith("image/")) return "IMAGE";
-		if (mimeType.startsWith("video/")) return "VIDEO";
-		if (mimeType.startsWith("audio/")) return "AUDIO";
+		if (mimeType == null)
+			return "FILE";
+		if (mimeType.startsWith("image/"))
+			return "IMAGE";
+		if (mimeType.startsWith("video/"))
+			return "VIDEO";
+		if (mimeType.startsWith("audio/"))
+			return "AUDIO";
 		return "DOCUMENT";
 	}
 }

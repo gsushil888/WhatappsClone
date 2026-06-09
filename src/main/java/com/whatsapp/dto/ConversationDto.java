@@ -164,6 +164,7 @@ public class ConversationDto {
     private String mobileNumber;
     private Integer participantCount;
     private List<MediaDto> media;
+    private Integer mediaCount; // total individual files (sum of all items across all media groups)
   }
 
   @Data

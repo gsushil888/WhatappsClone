@@ -95,6 +95,7 @@ public class MessageService {
 			List<MessageDto.ReactionInfo> reactionInfos = reactions.stream()
 					.map(r -> MessageDto.ReactionInfo.builder().emoji(r.getEmoji()).userId(r.getUser().getId())
 							.displayName(resolveNameFromContact(r.getUser(), contactBySenderId.get(r.getUser().getId())))
+							.attachmentId(r.getAttachment() != null ? r.getAttachment().getId() : null)
 							.createdAt(r.getCreatedAt()).build())
 					.collect(Collectors.toList());
 
@@ -116,7 +117,7 @@ public class MessageService {
 						.size(att.getFileSize()).mimeType(att.getMimeType()).duration(att.getDuration())
 						.thumbnail(att.getThumbnailUrl()).fileName(att.getFileName()).build();
 				attachmentInfos = sorted.stream().map(a -> MessageDto.AttachmentInfo.builder()
-						.fileUrl(a.getFileUrl()).fileName(a.getFileName()).fileSize(a.getFileSize())
+						.id(a.getId()).fileUrl(a.getFileUrl()).fileName(a.getFileName()).fileSize(a.getFileSize())
 						.mimeType(a.getMimeType()).width(a.getWidth()).height(a.getHeight())
 						.duration(a.getDuration()).thumbnailUrl(a.getThumbnailUrl())
 						.type(a.getType() != null ? a.getType().name() : null).build())
@@ -292,17 +293,22 @@ public class MessageService {
 
 		User user = userRepository.findById(userId).orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
 
+		MessageAttachment attachment = null;
+		if (request.getAttachmentId() != null) {
+			attachment = messageAttachmentRepository.findById(request.getAttachmentId()).orElse(null);
+		}
+
 		MessageReaction reaction = MessageReaction.builder().message(message).user(user).emoji(request.getEmoji())
-				.build();
+				.attachment(attachment).build();
 
 		reactionRepository.save(reaction);
 	}
 
 	@Transactional
-	public void removeReaction(Long userId, Long messageId, String emoji) {
-		MessageReaction reaction = reactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
+	public void removeReaction(Long userId, Long messageId, String emoji, Long attachmentId) {
+		MessageReaction reaction = reactionRepository
+				.findByMessageIdAndUserIdAndEmojiAndAttachment(messageId, userId, emoji, attachmentId)
 				.orElseThrow(() -> new MessageException(ErrorCode.MSG_NOT_FOUND));
-
 		reactionRepository.delete(reaction);
 	}
 
@@ -339,7 +345,9 @@ public class MessageService {
 		List<MessageReaction> reactions = reactionRepository.findByMessageId(message.getId());
 		List<MessageDto.ReactionInfo> reactionInfos = reactions.stream()
 				.map(r -> MessageDto.ReactionInfo.builder().emoji(r.getEmoji()).userId(r.getUser().getId())
-						.displayName(getDisplayName(currentUserId, r.getUser())).createdAt(r.getCreatedAt()).build())
+						.displayName(getDisplayName(currentUserId, r.getUser()))
+						.attachmentId(r.getAttachment() != null ? r.getAttachment().getId() : null)
+						.createdAt(r.getCreatedAt()).build())
 				.collect(Collectors.toList());
 
 		List<MessageStatus> statuses = messageStatusRepository.findByMessageId(message.getId());
@@ -355,7 +363,7 @@ public class MessageService {
 				: attachments.stream()
 						.sorted(java.util.Comparator.comparingInt(a -> (a.getSortOrder() != null ? a.getSortOrder() : 0)))
 						.map(a -> MessageDto.AttachmentInfo.builder()
-						.fileUrl(a.getFileUrl()).fileName(a.getFileName()).fileSize(a.getFileSize())
+						.id(a.getId()).fileUrl(a.getFileUrl()).fileName(a.getFileName()).fileSize(a.getFileSize())
 						.mimeType(a.getMimeType()).width(a.getWidth()).height(a.getHeight())
 						.duration(a.getDuration()).thumbnailUrl(a.getThumbnailUrl())
 						.type(a.getType() != null ? a.getType().name() : null).build())

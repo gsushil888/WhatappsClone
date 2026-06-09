@@ -21,7 +21,16 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
   List<MessageReaction> findByMessageId(@Param("messageId") Long messageId);
 
   @Query("SELECT mr FROM MessageReaction mr "
-      + "WHERE mr.message.id = :messageId AND mr.user.id = :userId AND mr.emoji = :emoji")
+      + "WHERE mr.message.id = :messageId AND mr.user.id = :userId AND mr.emoji = :emoji "
+      + "AND (:attachmentId IS NULL AND mr.attachment IS NULL OR mr.attachment.id = :attachmentId)")
+  Optional<MessageReaction> findByMessageIdAndUserIdAndEmojiAndAttachment(
+      @Param("messageId") Long messageId, @Param("userId") Long userId,
+      @Param("emoji") String emoji, @Param("attachmentId") Long attachmentId);
+
+  // Keep old method for backward compat (message-level reactions)
+  @Query("SELECT mr FROM MessageReaction mr "
+      + "WHERE mr.message.id = :messageId AND mr.user.id = :userId AND mr.emoji = :emoji "
+      + "AND mr.attachment IS NULL")
   Optional<MessageReaction> findByMessageIdAndUserIdAndEmoji(@Param("messageId") Long messageId,
       @Param("userId") Long userId, @Param("emoji") String emoji);
 

@@ -121,10 +121,10 @@ public class MessageController {
 
 	@DeleteMapping("/messages/{messageId}/reactions/{emoji}")
 	public ResponseEntity<ApiResponse<Void>> removeReaction(Authentication authentication, @PathVariable Long messageId,
-			@PathVariable String emoji) {
+			@PathVariable String emoji, @RequestParam(required = false) Long attachmentId) {
 
 		Long userId = (Long) authentication.getPrincipal();
-		messageService.removeReaction(userId, messageId, emoji);
+		messageService.removeReaction(userId, messageId, emoji, attachmentId);
 
 		return ResponseEntity.ok(ApiResponse.<Void>builder().success(true)
 				.correlationId(RequestContext.getCorrelationId()).message("Reaction removed successfully").build());

@@ -64,6 +64,7 @@ public class MessageDto {
   @AllArgsConstructor
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class AttachmentInfo {
+    private Long id; // needed so frontend can reference specific attachment for reactions
     private String fileUrl;
     private String fileName;
     private Long fileSize;
@@ -92,6 +93,7 @@ public class MessageDto {
   public static class AddReactionRequest {
     @NotBlank(message = "Emoji is required")
     private String emoji;
+    private Long attachmentId; // null = react to whole message, non-null = react to specific attachment
   }
 
   @Data
@@ -141,6 +143,7 @@ public class MessageDto {
     private String emoji;
     private Long userId;
     private String displayName;
+    private Long attachmentId; // null = message-level reaction
     private LocalDateTime createdAt;
   }
 

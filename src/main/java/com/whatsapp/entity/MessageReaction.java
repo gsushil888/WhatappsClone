@@ -29,6 +29,11 @@ public class MessageReaction {
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
+  // null = reaction on whole message; non-null = reaction on a specific attachment
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "attachment_id")
+  private MessageAttachment attachment;
+
   @Column(length = 10, columnDefinition = "varchar(10) CHARACTER SET utf8mb4")
   private String emoji;
 
