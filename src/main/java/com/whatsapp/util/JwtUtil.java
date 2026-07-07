@@ -34,13 +34,9 @@ public class JwtUtil {
 		claims.put("sessionId", sessionId);
 		claims.put("tokenType", "ACCESS");
 
-		return Jwts.builder()
-				.setClaims(claims)
-				.setSubject(userId.toString())
-				.setIssuedAt(new Date())
+		return Jwts.builder().setClaims(claims).setSubject(userId.toString()).setIssuedAt(new Date())
 				.setExpiration(Date.from(Instant.now().plus(accessTokenExpiration, ChronoUnit.MILLIS)))
-				.signWith(secretKey, SignatureAlgorithm.HS256)
-				.compact();
+				.signWith(secretKey, SignatureAlgorithm.HS256).compact();
 	}
 
 	public String generateRefreshToken(Long userId, String sessionId) {
@@ -48,13 +44,9 @@ public class JwtUtil {
 		claims.put("sessionId", sessionId);
 		claims.put("tokenType", "REFRESH");
 
-		return Jwts.builder()
-				.setClaims(claims)
-				.setSubject(userId.toString())
-				.setIssuedAt(new Date())
+		return Jwts.builder().setClaims(claims).setSubject(userId.toString()).setIssuedAt(new Date())
 				.setExpiration(Date.from(Instant.now().plus(refreshTokenExpiration, ChronoUnit.MILLIS)))
-				.signWith(secretKey, SignatureAlgorithm.HS256)
-				.compact();
+				.signWith(secretKey, SignatureAlgorithm.HS256).compact();
 	}
 
 	public boolean validateToken(String token) {

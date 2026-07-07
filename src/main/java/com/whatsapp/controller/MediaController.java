@@ -42,11 +42,12 @@ public class MediaController {
 		Long userId = (Long) authentication.getPrincipal();
 		MediaDto.BatchUploadResponse response = mediaService.uploadMultiple(userId, files, conversationId);
 
-		return ResponseEntity.ok(ApiResponse.<MediaDto.BatchUploadResponse>builder().success(true).data(response)
-				.correlationId(RequestContext.getCorrelationId())
-				.message(response.getTotalFailed() == 0 ? "All files uploaded successfully"
-						: response.getTotalUploaded() + " uploaded, " + response.getTotalFailed() + " failed")
-				.build());
+		return ResponseEntity
+				.ok(ApiResponse.<MediaDto.BatchUploadResponse>builder().success(true).data(response)
+						.correlationId(RequestContext.getCorrelationId())
+						.message(response.getTotalFailed() == 0 ? "All files uploaded successfully"
+								: response.getTotalUploaded() + " uploaded, " + response.getTotalFailed() + " failed")
+						.build());
 	}
 
 	@GetMapping("/{mediaId}")

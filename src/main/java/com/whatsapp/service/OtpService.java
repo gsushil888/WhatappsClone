@@ -19,98 +19,92 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class OtpService {
 
-    private final OtpVerificationRepository otpRepository;
-    private final SecureRandom secureRandom = new SecureRandom();
+	private final OtpVerificationRepository otpRepository;
+	private final SecureRandom secureRandom = new SecureRandom();
 
-    @Transactional
-    public String generateOtp(String tempSessionId, String contactInfo, OtpVerification.OtpType otpType) {
-        try {
-            String otpCode = generateSecureOtp();
-            String deviceFingerprint = RequestContext.getDeviceFingerprint();
-            
-            // Don't delete existing OTPs - allow multiple active OTPs for different devices
-            // Only invalidate OTPs for the same device
-            otpRepository.invalidateOtpsByDevice(contactInfo, otpType, deviceFingerprint, 
-                    OtpVerification.OtpStatus.EXPIRED, OtpVerification.OtpStatus.PENDING);
+	@Transactional
+	public String generateOtp(String tempSessionId, String contactInfo, OtpVerification.OtpType otpType) {
+		try {
+			String otpCode = generateSecureOtp();
+			String deviceFingerprint = RequestContext.getDeviceFingerprint();
 
-            OtpVerification otp = OtpVerification.builder()
-                    .tempSessionId(tempSessionId)
-                    .contactInfo(contactInfo)
-                    .otpCode(otpCode)
-                    .otpType(otpType)
-                    .otpStatus(OtpVerification.OtpStatus.PENDING)
-                    .deviceFingerprint(deviceFingerprint)
-                    .ipAddress(RequestContext.getIpAddress())
-                    .expiresAt(LocalDateTime.now().plusMinutes(1))
-                    .attemptsCount(0)
-                    .build();
+			// Don't delete existing OTPs - allow multiple active OTPs for different devices
+			// Only invalidate OTPs for the same device
+			otpRepository.invalidateOtpsByDevice(contactInfo, otpType, deviceFingerprint,
+					OtpVerification.OtpStatus.EXPIRED, OtpVerification.OtpStatus.PENDING);
 
-            otpRepository.save(otp);
-            log.info("OTP generated for session: {} with contact: {} and device: {}", 
-                    tempSessionId, contactInfo, deviceFingerprint);
-            return otpCode;
+			OtpVerification otp = OtpVerification.builder().tempSessionId(tempSessionId).contactInfo(contactInfo)
+					.otpCode(otpCode).otpType(otpType).otpStatus(OtpVerification.OtpStatus.PENDING)
+					.deviceFingerprint(deviceFingerprint).ipAddress(RequestContext.getIpAddress())
+					.expiresAt(LocalDateTime.now().plusMinutes(1)).attemptsCount(0).build();
 
-        } catch (Exception e) {
-            log.error("Failed to generate OTP: {}", e.getMessage());
-            throw new AuthException(ErrorCode.AUTH_OTP_INVALID, "Failed to generate OTP");
-        }
-    }
+			otpRepository.save(otp);
+			log.info("OTP generated for session: {} with contact: {} and device: {}", tempSessionId, contactInfo,
+					deviceFingerprint);
+			return otpCode;
 
-    @Transactional
-    public OtpVerification verifyOtp(String tempSessionId, String otpCode) {
-        try {
-            Optional<OtpVerification> otpOpt = otpRepository.findByTempSessionIdAndOtpStatusAndExpiresAtAfter(
-                    tempSessionId, OtpVerification.OtpStatus.PENDING, LocalDateTime.now());
-            
-            if (otpOpt.isEmpty()) {
-                OtpVerification expiredOtp = otpRepository.findByTempSessionId(tempSessionId)
-                        .orElseThrow(() -> new AuthException(ErrorCode.AUTH_OTP_INVALID));
-                throw new AuthException(ErrorCode.AUTH_OTP_EXPIRED, "OTP expired. Please request a new one.");
-            }
-            
-            OtpVerification otp = otpOpt.get();
+		} catch (Exception e) {
+			log.error("Failed to generate OTP: {}", e.getMessage());
+			throw new AuthException(ErrorCode.AUTH_OTP_INVALID, "Failed to generate OTP");
+		}
+	}
 
-            if (!otp.canAttempt()) {
-                otp.setOtpStatus(OtpVerification.OtpStatus.FAILED);
-                otpRepository.save(otp);
-                throw new AuthException(ErrorCode.AUTH_OTP_ATTEMPTS_EXCEEDED);
-            }
+	@Transactional
+	public OtpVerification verifyOtp(String tempSessionId, String otpCode) {
+		try {
+			Optional<OtpVerification> otpOpt = otpRepository.findByTempSessionIdAndOtpStatusAndExpiresAtAfter(
+					tempSessionId, OtpVerification.OtpStatus.PENDING, LocalDateTime.now());
 
-            otp.setAttemptsCount(otp.getAttemptsCount() + 1);
+			if (otpOpt.isEmpty()) {
+				OtpVerification expiredOtp = otpRepository.findByTempSessionId(tempSessionId)
+						.orElseThrow(() -> new AuthException(ErrorCode.AUTH_OTP_INVALID));
+				throw new AuthException(ErrorCode.AUTH_OTP_EXPIRED, "OTP expired. Please request a new one.");
+			}
 
-            if (!otp.getOtpCode().equals(otpCode)) {
-                otpRepository.save(otp);
-                throw new AuthException(ErrorCode.AUTH_OTP_INVALID);
-            }
+			OtpVerification otp = otpOpt.get();
 
-            otp.setOtpStatus(OtpVerification.OtpStatus.VERIFIED);
-            otp.setVerifiedAt(LocalDateTime.now());
-            otpRepository.save(otp);
+			if (!otp.canAttempt()) {
+				otp.setOtpStatus(OtpVerification.OtpStatus.FAILED);
+				otpRepository.save(otp);
+				throw new AuthException(ErrorCode.AUTH_OTP_ATTEMPTS_EXCEEDED);
+			}
 
-            log.info("OTP validated successfully for session: {}", tempSessionId);
-            return otp;
+			otp.setAttemptsCount(otp.getAttemptsCount() + 1);
 
-        } catch (AuthException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("OTP validation failed: {}", e.getMessage());
-            throw new AuthException(ErrorCode.AUTH_OTP_INVALID, "OTP validation failed");
-        }
-    }
+			if (!otp.getOtpCode().equals(otpCode)) {
+				otpRepository.save(otp);
+				throw new AuthException(ErrorCode.AUTH_OTP_INVALID);
+			}
 
-    @Transactional(readOnly = true)
-    public Optional<OtpVerification> findActiveOtp(String contactInfo, OtpVerification.OtpType otpType) {
-        return otpRepository.findByContactInfoAndOtpTypeAndOtpStatusAndExpiresAtAfter(
-                contactInfo, otpType, OtpVerification.OtpStatus.PENDING, LocalDateTime.now());
-    }
+			otp.setOtpStatus(OtpVerification.OtpStatus.VERIFIED);
+			otp.setVerifiedAt(LocalDateTime.now());
+			otpRepository.save(otp);
 
-    @Transactional(readOnly = true)
-    public Optional<OtpVerification> findActiveOtpByDevice(String contactInfo, OtpVerification.OtpType otpType, String deviceFingerprint) {
-        return otpRepository.findByContactInfoAndOtpTypeAndDeviceFingerprintAndOtpStatusAndExpiresAtAfter(
-                contactInfo, otpType, deviceFingerprint, OtpVerification.OtpStatus.PENDING, LocalDateTime.now());
-    }
+			log.info("OTP validated successfully for session: {}", tempSessionId);
+			return otp;
 
-    private String generateSecureOtp() {
-        return String.format("%06d", secureRandom.nextInt(1000000));
-    }
+		} catch (AuthException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("OTP validation failed: {}", e.getMessage());
+			throw new AuthException(ErrorCode.AUTH_OTP_INVALID, "OTP validation failed");
+		}
+	}
+
+	@Transactional(readOnly = true)
+	public Optional<OtpVerification> findActiveOtp(String contactInfo, OtpVerification.OtpType otpType) {
+		return otpRepository.findByContactInfoAndOtpTypeAndOtpStatusAndExpiresAtAfter(contactInfo, otpType,
+				OtpVerification.OtpStatus.PENDING, LocalDateTime.now());
+	}
+
+	@Transactional(readOnly = true)
+	public Optional<OtpVerification> findActiveOtpByDevice(String contactInfo, OtpVerification.OtpType otpType,
+			String deviceFingerprint) {
+		return otpRepository.findByContactInfoAndOtpTypeAndDeviceFingerprintAndOtpStatusAndExpiresAtAfter(contactInfo,
+				otpType, deviceFingerprint, OtpVerification.OtpStatus.PENDING, LocalDateTime.now());
+	}
+
+	private String generateSecureOtp() {
+		return String.format("%06d", secureRandom.nextInt(1000000));
+	}
 }

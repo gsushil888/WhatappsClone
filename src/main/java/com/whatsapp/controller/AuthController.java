@@ -57,12 +57,12 @@ public class AuthController {
 	public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> googleLogin(
 			@Valid @RequestBody AuthDto.GoogleLoginRequest request) {
 
-		log.info("Google OAuth login attempt with tokenId=> "+request.getIdToken());
+		log.info("Google OAuth login attempt with tokenId=> " + request.getIdToken());
 		AuthDto.LoginResponse response = authService.googleLogin(request);
 
-		return ResponseEntity.ok(ApiResponse.<AuthDto.LoginResponse>builder().success(true)
-				.message("Google login successful").data(response)
-				.correlationId(RequestContext.getCorrelationId()).build());
+		return ResponseEntity
+				.ok(ApiResponse.<AuthDto.LoginResponse>builder().success(true).message("Google login successful")
+						.data(response).correlationId(RequestContext.getCorrelationId()).build());
 	}
 
 	@PostMapping("/verify-otp")

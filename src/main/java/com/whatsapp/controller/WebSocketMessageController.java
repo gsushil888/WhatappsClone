@@ -246,7 +246,8 @@ public class WebSocketMessageController {
 	public void updatePresence(@Payload PresenceUpdate presenceUpdate, Principal principal) {
 		try {
 			Long userId = Long.parseLong(principal.getName());
-			//log.info("User {} updating presence to {}", userId, presenceUpdate.getStatus());
+			// log.info("User {} updating presence to {}", userId,
+			// presenceUpdate.getStatus());
 
 			if ("ONLINE".equals(presenceUpdate.getStatus())) {
 				presenceService.setUserOnline(userId, presenceUpdate.getDeviceInfo());

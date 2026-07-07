@@ -57,7 +57,7 @@ public class AuthService {
 	@Transactional
 	public AuthDto.LoginResponse googleLogin(AuthDto.GoogleLoginRequest request) {
 		GoogleIdToken.Payload payload = verifyGoogleToken(request.getIdToken());
-		log.info("Google Payload => "+payload);
+		log.info("Google Payload => " + payload);
 		String email = payload.getEmail();
 		String firstName = (String) payload.get("given_name");
 		String lastName = (String) payload.get("family_name");
@@ -65,20 +65,21 @@ public class AuthService {
 		String picture = (String) payload.get("picture");
 
 		User user = userRepository.findByIdentifierAndStatus(email).map(existingUser -> {
-			if (existingUser.getFirstName() == null && firstName != null) existingUser.setFirstName(firstName);
-			if (existingUser.getLastName() == null && lastName != null) existingUser.setLastName(lastName);
-			if (existingUser.getDisplayName() == null && fullName != null) existingUser.setDisplayName(fullName);
-			if (existingUser.getProfilePictureUrl() == null && picture != null) existingUser.setProfilePictureUrl(picture);
+			if (existingUser.getFirstName() == null && firstName != null)
+				existingUser.setFirstName(firstName);
+			if (existingUser.getLastName() == null && lastName != null)
+				existingUser.setLastName(lastName);
+			if (existingUser.getDisplayName() == null && fullName != null)
+				existingUser.setDisplayName(fullName);
+			if (existingUser.getProfilePictureUrl() == null && picture != null)
+				existingUser.setProfilePictureUrl(picture);
 			return existingUser;
 		}).orElseGet(() -> {
-			String username = generateUniqueUsername("g", email.split("@")[0].toLowerCase().replaceAll("[^a-z0-9]", ""));
-			User newUser = User.builder()
-					.username(username).email(email)
-					.firstName(firstName)
-					.lastName(lastName)
-					.displayName(fullName != null ? fullName : username)
-					.profilePictureUrl(picture).status(User.UserStatus.ACTIVE)
-					.accountType(User.AccountType.PERSONAL).isOnline(false)
+			String username = generateUniqueUsername("g",
+					email.split("@")[0].toLowerCase().replaceAll("[^a-z0-9]", ""));
+			User newUser = User.builder().username(username).email(email).firstName(firstName).lastName(lastName)
+					.displayName(fullName != null ? fullName : username).profilePictureUrl(picture)
+					.status(User.UserStatus.ACTIVE).accountType(User.AccountType.PERSONAL).isOnline(false)
 					.isVerified(true).emailVerified(true).phoneVerified(false).build();
 			newUser.setPrivacySettings(PrivacySettings.builder().user(newUser).build());
 			return userRepository.save(newUser);
@@ -94,10 +95,8 @@ public class AuthService {
 
 	private GoogleIdToken.Payload verifyGoogleToken(String idToken) {
 		try {
-			GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-					new NetHttpTransport(), GsonFactory.getDefaultInstance())
-					.setAudience(Collections.singletonList(googleClientId))
-					.build();
+			GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
+					GsonFactory.getDefaultInstance()).setAudience(Collections.singletonList(googleClientId)).build();
 			GoogleIdToken googleIdToken = verifier.verify(idToken);
 			if (googleIdToken == null) {
 				throw new AuthException(ErrorCode.AUTH_INVALID_TOKEN, "Invalid Google token");

@@ -79,7 +79,11 @@ public class LoggingAspect {
 		}
 	}
 
-	@AfterThrowing(pointcut = "execution(* com.whatsapp..*(..))", throwing = "ex")
+	@AfterThrowing(
+//			pointcut = "execution(* com.whatsapp..*(..))"
+        pointcut ="execution(* com.whatsapp.controller..*(..)) || " +
+        "execution(* com.whatsapp.service..*(..))"
+			, throwing = "ex")
 	public void logException(JoinPoint joinPoint, Throwable ex) {
 		String correlationId = RequestContext.getCorrelationId();
 		String methodName = joinPoint.getSignature().getName();

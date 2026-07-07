@@ -1,9 +1,11 @@
 package com.whatsapp.config;
 
+import com.whatsapp.filter.EncryptionFilter;
 import com.whatsapp.filter.JwtAuthenticationFilter;
 import com.whatsapp.filter.RequestContextFilter;
 import com.whatsapp.util.JwtUtil;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,6 +30,13 @@ import java.util.List;
 public class SecurityConfig {
 
 	@Bean
+	public FilterRegistrationBean<EncryptionFilter> encryptionFilterRegistration(EncryptionFilter encryptionFilter) {
+		FilterRegistrationBean<EncryptionFilter> registration = new FilterRegistrationBean<>(encryptionFilter);
+		registration.setOrder(1);
+		return registration;
+	}
+
+	@Bean
 	public RequestContextFilter customRequestContextFilter() {
 		return new RequestContextFilter();
 	}
@@ -39,24 +48,17 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http,
-			JwtUtil jwtUtil,
-			UserSessionRepository userSessionRepository)
-			throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtUtil jwtUtil,
+			UserSessionRepository userSessionRepository) throws Exception {
 		RequestContextFilter requestContextFilter = customRequestContextFilter();
-		JwtAuthenticationFilter jwtAuthenticationFilter = jwtAuthenticationFilter(
-				jwtUtil, userSessionRepository);
+		JwtAuthenticationFilter jwtAuthenticationFilter = jwtAuthenticationFilter(jwtUtil, userSessionRepository);
 
-		http.csrf(csrf -> csrf.disable())
-				.cors(cors -> cors
-						.configurationSource(corsConfigurationSource()))
-				.sessionManagement(session -> session
-						.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+		http.csrf(csrf -> csrf.disable()).cors(cors -> cors.configurationSource(corsConfigurationSource()))
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 
 						// ✅ Angular static content
-						.requestMatchers("/", "/index.html", "/favicon.ico",
-								"/*.js", "/*.css", "/assets/**")
+						.requestMatchers("/", "/index.html", "/favicon.ico", "/*.js", "/*.css", "/assets/**")
 						.permitAll()
 
 						// ✅ Public APIs (login/register only)
@@ -66,14 +68,11 @@ public class SecurityConfig {
 						.requestMatchers("/api/**").authenticated()
 
 						// (optional health, ws, actuator)
-						.requestMatchers("/ws/**", "/health", "/actuator/**")
-						.permitAll()
+						.requestMatchers("/ws/**", "/health", "/actuator/**").permitAll()
 
 						.anyRequest().authenticated())
-				.addFilterBefore(requestContextFilter,
-						UsernamePasswordAuthenticationFilter.class)
-				.addFilterAfter(jwtAuthenticationFilter,
-						RequestContextFilter.class);
+				.addFilterBefore(requestContextFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterAfter(jwtAuthenticationFilter, RequestContextFilter.class);
 
 		return http.build();
 	}
@@ -82,8 +81,7 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
 		config.setAllowedOriginPatterns(List.of("*"));
-		config.setAllowedMethods(
-				List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(true);
 
@@ -98,8 +96,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public AuthenticationManager authenticationManager(
-			AuthenticationConfiguration config) throws Exception {
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
 		return config.getAuthenticationManager();
 	}
 }

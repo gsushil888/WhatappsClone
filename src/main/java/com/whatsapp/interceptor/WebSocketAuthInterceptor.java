@@ -2,14 +2,17 @@ package com.whatsapp.interceptor;
 
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
+import com.whatsapp.util.EncryptionUtil;
 import com.whatsapp.util.JwtUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,12 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 
 	private final JwtUtil jwtUtil;
 
+	@Value("${app.encryption.secret:}")
+	private String encryptionSecret;
+
+	@Value("${app.encryption.enabled:false}")
+	private boolean encryptionEnabled;
+
 	@Override
 	public boolean beforeHandshake(@NonNull ServerHttpRequest request, @NonNull ServerHttpResponse response,
 			@NonNull WebSocketHandler wsHandler, @NonNull Map<String, Object> attributes) throws Exception {
@@ -32,6 +41,15 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 			if (token == null) {
 				log.warn("WebSocket handshake failed - no token from: {}", request.getRemoteAddress());
 				return false;
+			}
+
+			// Decrypt token if encryption is enabled
+			if (encryptionEnabled && StringUtils.hasText(encryptionSecret)) {
+				try {
+					token = EncryptionUtil.decrypt(token, encryptionSecret);
+				} catch (Exception e) {
+					log.warn("WebSocket token decryption failed, trying as plain token: {}", e.getMessage());
+				}
 			}
 
 			if (!jwtUtil.validateToken(token)) {

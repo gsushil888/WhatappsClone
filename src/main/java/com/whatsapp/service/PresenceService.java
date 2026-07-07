@@ -95,7 +95,7 @@ public class PresenceService {
 		});
 
 		broadcastPresenceUpdate(userId, "OFFLINE", now);
-		//log.info("User {} is now offline", userId);
+		// log.info("User {} is now offline", userId);
 	}
 
 	public void updateLastSeen(Long userId) {

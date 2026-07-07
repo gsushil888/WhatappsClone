@@ -28,7 +28,7 @@ public class SessionService {
 
 	private final UserSessionRepository userSessionRepository;
 	private final JwtUtil jwtUtil;
-	
+
 	@Value("${jwt.refresh-token-validity:86400000}")
 	private long refreshTokenExpiration;
 
@@ -53,7 +53,9 @@ public class SessionService {
 							return session;
 						}))
 				.or(() -> {
-					log.debug("[SERVICE] [DB-CALL] findByUserIdAndDeviceFingerprintAndStatusAndExpiresAtAfter - userId: {}", userId);
+					log.debug(
+							"[SERVICE] [DB-CALL] findByUserIdAndDeviceFingerprintAndStatusAndExpiresAtAfter - userId: {}",
+							userId);
 					Optional<UserSession> session = userSessionRepository
 							.findByUserIdAndDeviceFingerprintAndStatusAndExpiresAtAfter(userId, deviceFingerprint,
 									UserSession.SessionStatus.ACTIVE, LocalDateTime.now());
@@ -81,14 +83,14 @@ public class SessionService {
 				ipAddress);
 
 		// Revoke all existing active sessions (single session per user)
-		List<UserSession> activeSessions = userSessionRepository.findByUserIdAndStatus(user.getId(), UserSession.SessionStatus.ACTIVE);
+		List<UserSession> activeSessions = userSessionRepository.findByUserIdAndStatus(user.getId(),
+				UserSession.SessionStatus.ACTIVE);
 		if (!activeSessions.isEmpty()) {
 			log.info("[SERVICE] Revoking {} existing session(s) for userId: {}", activeSessions.size(), user.getId());
 			activeSessions.forEach(s -> s.setStatus(UserSession.SessionStatus.REVOKED));
 			userSessionRepository.saveAll(activeSessions);
-			Optional.ofNullable(redisTemplate).ifPresent(redis ->
-				activeSessions.forEach(s -> redis.delete(SESSION_CACHE_KEY + user.getId() + ":" + s.getDeviceFingerprint()))
-			);
+			Optional.ofNullable(redisTemplate).ifPresent(redis -> activeSessions
+					.forEach(s -> redis.delete(SESSION_CACHE_KEY + user.getId() + ":" + s.getDeviceFingerprint())));
 		}
 
 		log.info("[SERVICE] Creating new session - userId: {}", user.getId());
@@ -143,8 +145,8 @@ public class SessionService {
 	@Transactional
 	public void updateSessionAndUserPresence(UserSession session, User user) {
 		LocalDateTime now = LocalDateTime.now();
-		log.debug("[SERVICE] [DB-CALL] updateSessionTokens + updateUserPresence - userId: {}, sessionId: {}", user.getId(),
-				session.getId());
+		log.debug("[SERVICE] [DB-CALL] updateSessionTokens + updateUserPresence - userId: {}, sessionId: {}",
+				user.getId(), session.getId());
 
 		userSessionRepository.updateSessionTokens(session.getId(), session.getJwtToken(), session.getRefreshToken(),
 				now, RequestContext.getIpAddress(), RequestContext.getUserAgent());

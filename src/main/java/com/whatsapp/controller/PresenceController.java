@@ -17,28 +17,23 @@ public class PresenceController {
 	private final PresenceService presenceService;
 
 	@GetMapping("/status/{userId}")
-	public ResponseEntity<ApiResponse<Map<String, Object>>> getUserPresence(
-			@PathVariable Long userId,
+	public ResponseEntity<ApiResponse<Map<String, Object>>> getUserPresence(@PathVariable Long userId,
 			@RequestHeader("X-User-Id") Long requesterId) {
 
-		Map<String, Object> presence = presenceService.getPresenceInfo(userId,
-				requesterId);
+		Map<String, Object> presence = presenceService.getPresenceInfo(userId, requesterId);
 		return ResponseEntity.ok(ApiResponse.success(presence));
 	}
 
 	@GetMapping("/online-users")
-	public ResponseEntity<ApiResponse<List<Long>>> getOnlineUsers(
-			@RequestHeader("X-User-Id") Long userId) {
+	public ResponseEntity<ApiResponse<List<Long>>> getOnlineUsers(@RequestHeader("X-User-Id") Long userId) {
 
 		List<Long> onlineUsers = presenceService.getOnlineUsers();
 		return ResponseEntity.ok(ApiResponse.success(onlineUsers));
 	}
 
 	@PostMapping("/update")
-	public ResponseEntity<ApiResponse<String>> updatePresence(
-			@RequestHeader("X-User-Id") Long userId,
-			@RequestParam String status,
-			@RequestParam(required = false) String deviceInfo) {
+	public ResponseEntity<ApiResponse<String>> updatePresence(@RequestHeader("X-User-Id") Long userId,
+			@RequestParam String status, @RequestParam(required = false) String deviceInfo) {
 
 		if ("ONLINE".equals(status)) {
 			presenceService.setUserOnline(userId, deviceInfo);
@@ -46,13 +41,11 @@ public class PresenceController {
 			presenceService.setUserOffline(userId);
 		}
 
-		return ResponseEntity
-				.ok(ApiResponse.success("Presence updated successfully"));
+		return ResponseEntity.ok(ApiResponse.success("Presence updated successfully"));
 	}
 
 	@PostMapping("/heartbeat")
-	public ResponseEntity<ApiResponse<String>> heartbeat(
-			@RequestHeader("X-User-Id") Long userId) {
+	public ResponseEntity<ApiResponse<String>> heartbeat(@RequestHeader("X-User-Id") Long userId) {
 
 		presenceService.updateLastSeen(userId);
 		return ResponseEntity.ok(ApiResponse.success("Heartbeat received"));

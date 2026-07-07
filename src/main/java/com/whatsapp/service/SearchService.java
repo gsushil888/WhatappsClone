@@ -28,7 +28,7 @@ public class SearchService {
 	@Transactional(readOnly = true)
 	public SearchDto.UniversalSearchResponse search(Long userId, String query, String type, int limit) {
 		log.info("Universal search - userId: {}, query: '{}', type: {}, limit: {}", userId, query, type, limit);
-		
+
 		Pageable pageable = PageRequest.of(0, limit);
 
 		SearchDto.UniversalSearchResponse.UniversalSearchResponseBuilder responseBuilder = SearchDto.UniversalSearchResponse
@@ -37,28 +37,29 @@ public class SearchService {
 		if ("all".equals(type) || "contacts".equals(type)) {
 			List<Contact> contacts = searchRepository.searchContacts(userId, query, pageable);
 			log.debug("Found {} contacts for query: '{}'", contacts.size(), query);
-			responseBuilder
-					.contacts(contacts.stream().map(c -> mapToContactSearchResult(c, userId)).collect(Collectors.toList()));
+			responseBuilder.contacts(
+					contacts.stream().map(c -> mapToContactSearchResult(c, userId)).collect(Collectors.toList()));
 		}
 
 		if ("all".equals(type) || "chats".equals(type)) {
 			List<Conversation> conversations = searchRepository.searchConversations(userId, query, pageable);
 			log.debug("Found {} conversations for query: '{}'", conversations.size(), query);
-			responseBuilder.conversations(
-					conversations.stream().map(c -> mapToConversationSearchResult(c, userId)).collect(Collectors.toList()));
+			responseBuilder.conversations(conversations.stream().map(c -> mapToConversationSearchResult(c, userId))
+					.collect(Collectors.toList()));
 		}
 
 		if ("all".equals(type) || "messages".equals(type)) {
 			List<Message> messages = searchRepository.searchMessages(userId, query, pageable);
 			log.debug("Found {} messages for query: '{}'", messages.size(), query);
-			responseBuilder
-					.messages(messages.stream().map(m -> mapToMessageSearchResult(m, userId)).collect(Collectors.toList()));
+			responseBuilder.messages(
+					messages.stream().map(m -> mapToMessageSearchResult(m, userId)).collect(Collectors.toList()));
 		}
 
 		if ("all".equals(type) || "users".equals(type)) {
 			List<User> users = searchRepository.searchUsers(userId, query, pageable);
 			log.debug("Found {} users for query: '{}'", users.size(), query);
-			responseBuilder.users(users.stream().map(u -> mapToUserSearchResult(u, userId)).collect(Collectors.toList()));
+			responseBuilder
+					.users(users.stream().map(u -> mapToUserSearchResult(u, userId)).collect(Collectors.toList()));
 		}
 
 		SearchDto.UniversalSearchResponse response = responseBuilder.build();
@@ -70,9 +71,9 @@ public class SearchService {
 				.totalMessages(response.getMessages() != null ? response.getMessages().size() : 0)
 				.totalUsers(response.getUsers() != null ? response.getUsers().size() : 0).hasMore(false).build());
 
-		log.info("Universal search completed - userId: {}, query: '{}', total results: {}", 
-				userId, query, response.getSummary().getTotalContacts() + response.getSummary().getTotalConversations() + 
-				response.getSummary().getTotalMessages() + response.getSummary().getTotalUsers());
+		log.info("Universal search completed - userId: {}, query: '{}', total results: {}", userId, query,
+				response.getSummary().getTotalContacts() + response.getSummary().getTotalConversations()
+						+ response.getSummary().getTotalMessages() + response.getSummary().getTotalUsers());
 
 		return response;
 	}
@@ -113,17 +114,16 @@ public class SearchService {
 		String displayName = getDisplayName(currentUserId, contact.getContactUser());
 		return SearchDto.ContactSearchResult.builder().id(contact.getId()).type("CONTACT")
 				.contactUser(SearchDto.ContactUser.builder().id(contact.getContactUser().getId())
-						.displayName(displayName)
-						.profilePictureUrl(contact.getContactUser().getProfilePictureUrl())
+						.displayName(displayName).profilePictureUrl(contact.getContactUser().getProfilePictureUrl())
 						.isOnline(contact.getContactUser().isOnline()).build())
 				.displayName(contact.getDisplayName()).matchedField("displayName").build();
 	}
 
-	private SearchDto.ConversationSearchResult mapToConversationSearchResult(Conversation conversation, Long currentUserId) {
+	private SearchDto.ConversationSearchResult mapToConversationSearchResult(Conversation conversation,
+			Long currentUserId) {
 		return SearchDto.ConversationSearchResult.builder().id(conversation.getId()).type("CONVERSATION")
 				.name(conversation.getName()).profileImageUrl(conversation.getGroupImageUrl())
-				.conversationType(conversation.getType().name())
-				.matchedField("name").build();
+				.conversationType(conversation.getType().name()).matchedField("name").build();
 	}
 
 	private SearchDto.MessageSearchResult mapToMessageSearchResult(Message message, Long currentUserId) {
@@ -133,27 +133,25 @@ public class SearchService {
 				.conversation(SearchDto.MessageConversation.builder().id(message.getConversation().getId())
 						.name(message.getConversation().getName()).type(message.getConversation().getType().name())
 						.build())
-				.sender(SearchDto.MessageSender.builder().id(message.getSender().getId())
-						.displayName(senderDisplayName).build())
+				.sender(SearchDto.MessageSender.builder().id(message.getSender().getId()).displayName(senderDisplayName)
+						.build())
 				.matchedField("content").build();
 	}
 
 	private SearchDto.UserSearchResult mapToUserSearchResult(User user, Long currentUserId) {
 		String displayName = getDisplayName(currentUserId, user);
 		return SearchDto.UserSearchResult.builder().id(user.getId()).type("USER").username(user.getUsername())
-				.displayName(displayName).profilePictureUrl(user.getProfilePictureUrl())
-				.isOnline(user.isOnline()).accountType(user.getAccountType().name()).matchedField("displayName")
-				.build();
+				.displayName(displayName).profilePictureUrl(user.getProfilePictureUrl()).isOnline(user.isOnline())
+				.accountType(user.getAccountType().name()).matchedField("displayName").build();
 	}
 
 	private String getDisplayName(Long currentUserId, User targetUser) {
-		Optional<Contact> contact = contactRepository
-				.findByUserIdAndContactUserId(currentUserId, targetUser.getId());
+		Optional<Contact> contact = contactRepository.findByUserIdAndContactUserId(currentUserId, targetUser.getId());
 		if (contact.isPresent()) {
 			return contact.get().getDisplayName();
 		}
 		String userDisplayName = targetUser.getDisplayName();
-		return (userDisplayName != null && !userDisplayName.trim().isEmpty()) 
-				? userDisplayName : targetUser.getPhoneNumber();
+		return (userDisplayName != null && !userDisplayName.trim().isEmpty()) ? userDisplayName
+				: targetUser.getPhoneNumber();
 	}
 }

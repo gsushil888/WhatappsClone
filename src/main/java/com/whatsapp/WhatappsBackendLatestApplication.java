@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -13,11 +14,11 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableAsync
 @EnableScheduling
 @EnableTransactionManagement
+//@EnableAspectJAutoProxy
 public class WhatappsBackendLatestApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(WhatappsBackendLatestApplication.class, args);
 	}
-	
 
 }

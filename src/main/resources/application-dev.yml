@@ -68,3 +68,8 @@ spring:
 
 google:
   client-id: 33227048330-96tb616sbhubg1nj6n2ploqa2euo8d0o.apps.googleusercontent.com
+
+app:
+  encryption:
+    secret: zaqwsxcderfvbgtyhnmjuiklop123456 # must match frontend encryptionKey
+    enabled: false

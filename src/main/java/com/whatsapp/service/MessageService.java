@@ -39,6 +39,7 @@ public class MessageService {
 	public MessageDto.MessageListResponse getMessages(Long userId, Long conversationId, int limit, Long beforeMessageId,
 			Long afterMessageId, Map<String, String> deviceInfo, Map<String, String> headers) {
 		log.info("Getting messages of user {} of conversation {}", userId, conversationId);
+		
 		ConversationParticipant participant = conversationParticipantRepository
 				.findByConversationIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new MessageException(ErrorCode.CONV_NOT_FOUND));
@@ -81,11 +82,17 @@ public class MessageService {
 		Map<Long, List<MessageAttachment>> attachmentsByMsgId = messageAttachmentRepository.findByMessageIdIn(messageIds)
 				.stream().collect(Collectors.groupingBy(a -> a.getMessage().getId()));
 
-		// Bulk-fetch contacts for all unique senders — 1 query instead of N
+		// Bulk-fetch contacts for all unique senders AND reactors — 1 query
 		Set<Long> senderIds = messages.stream().map(m -> m.getSender().getId()).collect(Collectors.toSet());
+		Set<Long> reactorIds = reactionsByMsgId.values().stream().flatMap(List::stream)
+				.map(r -> r.getUser().getId()).collect(Collectors.toSet());
+		Set<Long> allUserIds = new java.util.HashSet<>(senderIds);
+		allUserIds.addAll(reactorIds);
 		Map<Long, Contact> contactBySenderId = contactRepository
-				.findByUserIdAndContactUserIdIn(userId, List.copyOf(senderIds)).stream()
+				.findByUserIdAndContactUserIdIn(userId, List.copyOf(allUserIds)).stream()
 				.collect(Collectors.toMap(c -> c.getContactUser().getId(), c -> c, (a, b) -> a));
+
+		boolean isIndividual = messages.get(0).getConversation().getType() == Conversation.ConversationType.INDIVIDUAL;
 
 		List<MessageDto.MessageResponse> messageResponses = messages.stream().map(msg -> {
 			List<MessageReaction> reactions = reactionsByMsgId.getOrDefault(msg.getId(), List.of());
@@ -93,10 +100,18 @@ public class MessageService {
 			List<MessageAttachment> attachments = attachmentsByMsgId.getOrDefault(msg.getId(), List.of());
 
 			List<MessageDto.ReactionInfo> reactionInfos = reactions.stream()
-					.map(r -> MessageDto.ReactionInfo.builder().emoji(r.getEmoji()).userId(r.getUser().getId())
-							.displayName(resolveNameFromContact(r.getUser(), contactBySenderId.get(r.getUser().getId())))
-							.attachmentId(r.getAttachment() != null ? r.getAttachment().getId() : null)
-							.createdAt(r.getCreatedAt()).build())
+					.map(r -> {
+						User reactor = r.getUser();
+						String reactionDisplayName = reactor.getId().equals(userId) ? "You"
+								: resolveNameFromContact(reactor, contactBySenderId.get(reactor.getId()));
+						return MessageDto.ReactionInfo.builder()
+								.emoji(r.getEmoji())
+								.userId(reactor.getId())
+								.displayName(reactionDisplayName)
+								.mobileNumber(reactor.getPhoneNumber())
+								.attachmentId(r.getAttachment() != null ? r.getAttachment().getId() : null)
+								.createdAt(r.getCreatedAt()).build();
+					})
 					.collect(Collectors.toList());
 
 			Map<String, Object> deliveryStatus = Map.of(
@@ -129,7 +144,9 @@ public class MessageService {
 
 			return MessageDto.MessageResponse.builder().id(msg.getId()).senderId(sender.getId())
 					.senderName(senderName).senderMobileNumber(sender.getPhoneNumber())
-					.senderAvatar(sender.getProfilePictureUrl()).content(msg.getContent())
+					.senderAvatar(isIndividual ? null : sender.getProfilePictureUrl())
+					.isContact(isIndividual ? null : contactBySenderId.containsKey(sender.getId()))
+					.content(msg.getContent())
 					.messageType(msg.getType().name()).mediaUrl(mediaUrl).mediaMetadata(mediaMetadata)
 					.attachments(attachmentInfos)
 					.replyToMessageId(msg.getReplyToMessage() != null ? msg.getReplyToMessage().getId() : null)
@@ -137,14 +154,18 @@ public class MessageService {
 					.deliveryStatus(deliveryStatus).createdAt(msg.getCreatedAt()).build();
 		}).collect(Collectors.toList());
 
-		long totalCount = messageRepository.countByConversationId(conversationId, clearedAt, removedAt, gapStart,
-				readdedAt);
+//		long totalCount = messageRepository.countByConversationId(conversationId, clearedAt, removedAt, gapStart,
+//				readdedAt);
+		
 		boolean hasMore = messageResponses.size() == limit;
 		Long nextCursor = hasMore ? messageResponses.get(messageResponses.size() - 1).getId() : null;
 		log.info("Successfully fetched {} messages of user {} of conversation {}", messageResponses.size(), userId,
 				conversationId);
+		
 		return MessageDto.MessageListResponse.builder().messages(messageResponses).pagination(
-				ApiResponse.PaginationInfo.builder().limit(limit).total((int) totalCount).hasNext(hasMore).build())
+				ApiResponse.PaginationInfo.builder().limit(limit)
+//				.total((int) totalCount)
+				.hasNext(hasMore).build())
 				.nextCursor(nextCursor).build();
 	}
 
@@ -342,12 +363,21 @@ public class MessageService {
 	}
 
 	private MessageDto.MessageResponse mapToMessageResponse(Message message, Long currentUserId) {
+		boolean isIndividual = message.getConversation().getType() == Conversation.ConversationType.INDIVIDUAL;
 		List<MessageReaction> reactions = reactionRepository.findByMessageId(message.getId());
 		List<MessageDto.ReactionInfo> reactionInfos = reactions.stream()
-				.map(r -> MessageDto.ReactionInfo.builder().emoji(r.getEmoji()).userId(r.getUser().getId())
-						.displayName(getDisplayName(currentUserId, r.getUser()))
-						.attachmentId(r.getAttachment() != null ? r.getAttachment().getId() : null)
-						.createdAt(r.getCreatedAt()).build())
+				.map(r -> {
+					User reactor = r.getUser();
+					String reactionDisplayName = reactor.getId().equals(currentUserId) ? "You"
+							: resolveName(currentUserId, reactor);
+					return MessageDto.ReactionInfo.builder()
+							.emoji(r.getEmoji())
+							.userId(reactor.getId())
+							.displayName(reactionDisplayName)
+							.mobileNumber(reactor.getPhoneNumber())
+							.attachmentId(r.getAttachment() != null ? r.getAttachment().getId() : null)
+							.createdAt(r.getCreatedAt()).build();
+				})
 				.collect(Collectors.toList());
 
 		List<MessageStatus> statuses = messageStatusRepository.findByMessageId(message.getId());
@@ -378,9 +408,12 @@ public class MessageService {
 
 		User sender = message.getSender();
 		String senderName = resolveName(currentUserId, sender);
+		boolean senderIsContact = !sender.getId().equals(currentUserId)
+				&& contactRepository.findByUserIdAndContactUserId(currentUserId, sender.getId()).isPresent();
 
 		return MessageDto.MessageResponse.builder().id(message.getId()).senderId(sender.getId()).senderName(senderName)
-				.senderMobileNumber(sender.getPhoneNumber()).senderAvatar(sender.getProfilePictureUrl())
+				.senderMobileNumber(sender.getPhoneNumber()).senderAvatar(isIndividual ? null : sender.getProfilePictureUrl())
+				.isContact(isIndividual ? null : senderIsContact)
 				.content(message.getContent()).messageType(message.getType().name()).mediaUrl(mediaUrl)
 				.mediaMetadata(mediaMetadata)
 				.attachments(attachmentInfos.isEmpty() ? null : attachmentInfos)
@@ -389,11 +422,7 @@ public class MessageService {
 				.deliveryStatus(deliveryStatus).createdAt(message.getCreatedAt()).build();
 	}
 
-	private String getDisplayName(Long currentUserId, User targetUser) {
-		return resolveName(currentUserId, targetUser);
-	}
-
-	private String resolveName(Long viewerUserId, User targetUser) {
+private String resolveName(Long viewerUserId, User targetUser) {
 		Optional<Contact> contact = contactRepository.findByUserIdAndContactUserId(viewerUserId, targetUser.getId());
 		if (contact.isPresent() && contact.get().getDisplayName() != null
 				&& !contact.get().getDisplayName().trim().isEmpty()) {

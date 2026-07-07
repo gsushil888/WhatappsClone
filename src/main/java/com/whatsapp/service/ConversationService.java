@@ -63,9 +63,9 @@ public class ConversationService {
 
 		if (conversations.isEmpty()) {
 			long totalCount = conversationRepository.countUserConversations(userId);
-			return ConversationDto.ConversationListResponse.builder().conversations(Collections.emptyList())
-					.pagination(ApiResponse.PaginationInfo.builder().page(offset / limit + 1).limit(limit)
-							.total((int) totalCount).hasNext(false).build())
+			return ConversationDto.ConversationListResponse
+					.builder().conversations(Collections.emptyList()).pagination(ApiResponse.PaginationInfo.builder()
+							.page(offset / limit + 1).limit(limit).total((int) totalCount).hasNext(false).build())
 					.build();
 		}
 
@@ -76,14 +76,14 @@ public class ConversationService {
 				.findByConversationIdsAndUserId(convIds, userId).stream()
 				.collect(Collectors.toMap(cp -> cp.getConversation().getId(), cp -> cp, (a, b) -> a));
 
-		// 1 query — ALL participants for every conversation (needed for INDIVIDUAL other-user lookup)
+		// 1 query — ALL participants for every conversation (needed for INDIVIDUAL
+		// other-user lookup)
 		Map<Long, List<ConversationParticipant>> allParticipantsByConvId = participantRepository
 				.findByConversationIdIn(convIds).stream()
 				.collect(Collectors.groupingBy(cp -> cp.getConversation().getId()));
 
 		// 1 query — last message per conversation
-		Map<Long, Message> lastMessageByConvId = messageRepository
-				.findLastMessagesByConversationIds(convIds).stream()
+		Map<Long, Message> lastMessageByConvId = messageRepository.findLastMessagesByConversationIds(convIds).stream()
 				.collect(Collectors.toMap(m -> m.getConversation().getId(), m -> m, (a, b) -> a));
 
 		// 1 query — unread counts per conversation
@@ -91,12 +91,10 @@ public class ConversationService {
 		messageStatusRepository.countUnreadMessagesPerConversation(convIds, userId)
 				.forEach(row -> unreadByConvId.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
 
-		// 1 query — contacts for all other-user IDs the viewer might need display names for
-		Set<Long> otherUserIds = allParticipantsByConvId.values().stream()
-				.flatMap(List::stream)
-				.map(cp -> cp.getUser().getId())
-				.filter(id -> !id.equals(userId))
-				.collect(Collectors.toSet());
+		// 1 query — contacts for all other-user IDs the viewer might need display names
+		// for
+		Set<Long> otherUserIds = allParticipantsByConvId.values().stream().flatMap(List::stream)
+				.map(cp -> cp.getUser().getId()).filter(id -> !id.equals(userId)).collect(Collectors.toSet());
 		Map<Long, Contact> contactByUserId = otherUserIds.isEmpty() ? Collections.emptyMap()
 				: contactRepository.findByUserIdAndContactUserIdIn(userId, List.copyOf(otherUserIds)).stream()
 						.collect(Collectors.toMap(c -> c.getContactUser().getId(), c -> c, (a, b) -> a));
@@ -104,11 +102,9 @@ public class ConversationService {
 		log.info("User {} fetched {} conversations with filter '{}'", userId, conversations.size(), filter);
 
 		List<ConversationDto.ConversationResponse> conversationResponses = conversations.stream()
-				.map(conv -> mapToConversationResponseBulk(conv, userId,
-						myParticipantByConvId.get(conv.getId()),
+				.map(conv -> mapToConversationResponseBulk(conv, userId, myParticipantByConvId.get(conv.getId()),
 						allParticipantsByConvId.getOrDefault(conv.getId(), Collections.emptyList()),
-						lastMessageByConvId.get(conv.getId()),
-						unreadByConvId.getOrDefault(conv.getId(), 0L),
+						lastMessageByConvId.get(conv.getId()), unreadByConvId.getOrDefault(conv.getId(), 0L),
 						contactByUserId))
 				.collect(Collectors.toList());
 
@@ -120,8 +116,8 @@ public class ConversationService {
 	}
 
 	private ConversationDto.ConversationResponse mapToConversationResponseBulk(Conversation conversation, Long userId,
-			ConversationParticipant participant, List<ConversationParticipant> allParticipants,
-			Message lastMsg, long unreadCount, Map<Long, Contact> contactByUserId) {
+			ConversationParticipant participant, List<ConversationParticipant> allParticipants, Message lastMsg,
+			long unreadCount, Map<Long, Contact> contactByUserId) {
 
 		ConversationDto.LastMessageDto lastMessage = null;
 		if (lastMsg != null) {
@@ -130,8 +126,10 @@ public class ConversationService {
 			lastMessage = ConversationDto.LastMessageDto.builder().id(lastMsg.getId()).content(lastMsg.getContent())
 					.type(lastMsg.getType() != null ? lastMsg.getType().name() : "TEXT")
 					.timestamp(lastMsg.getCreatedAt())
-					.sender(sender != null ? ConversationDto.MessageSenderDto.builder().id(sender.getId())
-							.displayName(senderName).build() : null)
+					.sender(sender != null
+							? ConversationDto.MessageSenderDto.builder().id(sender.getId()).displayName(senderName)
+									.build()
+							: null)
 					.status(lastMsg.getStatus() != null ? lastMsg.getStatus().name() : null).build();
 		}
 
@@ -142,8 +140,8 @@ public class ConversationService {
 		LocalDateTime lastActiveAt = null;
 
 		if (conversation.getType() == Conversation.ConversationType.INDIVIDUAL) {
-			ConversationParticipant other = allParticipants.stream()
-					.filter(p -> !p.getUser().getId().equals(userId)).findFirst().orElse(null);
+			ConversationParticipant other = allParticipants.stream().filter(p -> !p.getUser().getId().equals(userId))
+					.findFirst().orElse(null);
 			if (other != null) {
 				User otherUser = other.getUser();
 				profilePictureUrl = otherUser.getProfilePictureUrl();
@@ -197,13 +195,13 @@ public class ConversationService {
 
 			if (existing.isPresent()) {
 				Conversation conv = existing.get();
-				log.info("Found existing individual conversation {} between user {} and {}",
-						conv.getId(), userId, request.getParticipantId());
+				log.info("Found existing individual conversation {} between user {} and {}", conv.getId(), userId,
+						request.getParticipantId());
 
 				// Re-surface for any participant who had LEFT (deleted the chat)
 				// Set clearedAt = now so they only see messages from this point forward
-				List<ConversationParticipant> allParticipants =
-						participantRepository.findByConversationId(conv.getId());
+				List<ConversationParticipant> allParticipants = participantRepository
+						.findByConversationId(conv.getId());
 
 				for (ConversationParticipant cp : allParticipants) {
 					if (cp.getStatus() == ConversationParticipant.ParticipantStatus.LEFT) {
@@ -211,8 +209,8 @@ public class ConversationService {
 						cp.setClearedAt(LocalDateTime.now()); // fresh start — no old messages visible
 						cp.setLeftAt(null);
 						participantRepository.save(cp);
-						log.info("Re-surfaced conversation {} for user {} with fresh message view",
-								conv.getId(), cp.getUser().getId());
+						log.info("Re-surfaced conversation {} for user {} with fresh message view", conv.getId(),
+								cp.getUser().getId());
 					}
 				}
 
@@ -230,8 +228,8 @@ public class ConversationService {
 				.build();
 
 		conversation = conversationRepository.save(conversation);
-		log.info("User {} created {} conversation {} (title='{}')",
-				userId, conversation.getType(), conversation.getId(), conversation.getName());
+		log.info("User {} created {} conversation {} (title='{}')", userId, conversation.getType(),
+				conversation.getId(), conversation.getName());
 
 		ConversationParticipant creatorParticipant = ConversationParticipant.builder().conversation(conversation)
 				.user(user).role(ConversationParticipant.ParticipantRole.OWNER)
@@ -275,13 +273,17 @@ public class ConversationService {
 		// For INDIVIDUAL: User B sees the conversation only when first message arrives
 		if (conversation.getType() == Conversation.ConversationType.GROUP) {
 			List<Long> participantIds = participantRepository
-					.findByConversationIdAndStatus(conversation.getId(), ConversationParticipant.ParticipantStatus.ACTIVE)
+					.findByConversationIdAndStatus(conversation.getId(),
+							ConversationParticipant.ParticipantStatus.ACTIVE)
 					.stream().map(p -> p.getUser().getId()).filter(id -> !id.equals(userId))
 					.collect(Collectors.toList());
-			log.info("Pushing new GROUP conversation {} to {} participants", conversation.getId(), participantIds.size());
+			log.info("Pushing new GROUP conversation {} to {} participants", conversation.getId(),
+					participantIds.size());
 			for (Long participantId : participantIds) {
-				ConversationDto.ConversationResponse personalizedResponse = mapToConversationResponse(conversation, participantId);
-				messagingTemplate.convertAndSendToUser(participantId.toString(), "/queue/new-conversation", personalizedResponse);
+				ConversationDto.ConversationResponse personalizedResponse = mapToConversationResponse(conversation,
+						participantId);
+				messagingTemplate.convertAndSendToUser(participantId.toString(), "/queue/new-conversation",
+						personalizedResponse);
 			}
 		}
 
@@ -326,7 +328,8 @@ public class ConversationService {
 	@Transactional
 	public ConversationDto.AddParticipantsResponse addParticipants(Long userId, Long conversationId,
 			ConversationDto.AddParticipantsRequest request) {
-		log.info("User {} adding {} participants to conversation {}", userId, request.getUserIds().size(), conversationId);
+		log.info("User {} adding {} participants to conversation {}", userId, request.getUserIds().size(),
+				conversationId);
 		Conversation conversation = conversationRepository.findByIdAndUserId(conversationId, userId)
 				.orElseThrow(() -> new ConversationException(ErrorCode.CONV_NOT_FOUND));
 
@@ -338,13 +341,13 @@ public class ConversationService {
 
 		for (Long participantId : request.getUserIds()) {
 			User participant = userRepository.findById(participantId).orElse(null);
-			if (participant == null) continue;
+			if (participant == null)
+				continue;
 
 			ConversationParticipant cp = participantRepository
 					.findByConversationIdAndUserId(conversationId, participantId)
-					.orElse(ConversationParticipant.builder().conversation(conversation)
-							.user(participant).isArchived(false).isFavorite(false)
-							.isPinned(false).isMuted(false).build());
+					.orElse(ConversationParticipant.builder().conversation(conversation).user(participant)
+							.isArchived(false).isFavorite(false).isPinned(false).isMuted(false).build());
 
 			boolean wasRemoved = cp.getStatus() == ConversationParticipant.ParticipantStatus.REMOVED;
 			LocalDateTime previousRemovedAt = wasRemoved ? cp.getRemovedAt() : null;
@@ -367,18 +370,17 @@ public class ConversationService {
 			participantRepository.save(cp);
 
 			addedParticipantDtos.add(mapToParticipantDto(cp, userId));
-			if (wasRemoved) readdedIds.add(participantId);
-			else newIds.add(participantId);
+			if (wasRemoved)
+				readdedIds.add(participantId);
+			else
+				newIds.add(participantId);
 		}
 
 		// Notify re-added users — keep existing conversation, just re-enable input
 		for (Long readdedId : readdedIds) {
 			messagingTemplate.convertAndSendToUser(readdedId.toString(), "/queue/conversation-update",
-					java.util.Map.of(
-							"conversationId", conversationId,
-							"event", "PARTICIPANT_READDED",
-							"addedByUserId", userId,
-							"addedByName", getDisplayName(readdedId, adder)));
+					java.util.Map.of("conversationId", conversationId, "event", "PARTICIPANT_READDED", "addedByUserId",
+							userId, "addedByName", getDisplayName(readdedId, adder)));
 		}
 
 		// Notify brand-new users — push full conversation so it appears in their list
@@ -391,15 +393,11 @@ public class ConversationService {
 		List<Long> existingMemberIds = participantRepository
 				.findByConversationIdAndStatus(conversationId, ConversationParticipant.ParticipantStatus.ACTIVE)
 				.stream().map(p -> p.getUser().getId())
-				.filter(id -> !id.equals(userId) && !request.getUserIds().contains(id))
-				.collect(Collectors.toList());
+				.filter(id -> !id.equals(userId) && !request.getUserIds().contains(id)).collect(Collectors.toList());
 		for (Long memberId : existingMemberIds) {
 			messagingTemplate.convertAndSendToUser(memberId.toString(), "/queue/conversation-update",
-					java.util.Map.of(
-							"conversationId", conversationId,
-							"event", "PARTICIPANT_ADDED",
-							"addedParticipants", addedParticipantDtos,
-							"addedByUserId", userId));
+					java.util.Map.of("conversationId", conversationId, "event", "PARTICIPANT_ADDED",
+							"addedParticipants", addedParticipantDtos, "addedByUserId", userId));
 		}
 
 		return ConversationDto.AddParticipantsResponse.builder().addedParticipants(addedParticipantDtos).build();
@@ -422,29 +420,20 @@ public class ConversationService {
 
 		// Notify removed user
 		messagingTemplate.convertAndSendToUser(participantId.toString(), "/queue/conversation-update",
-				java.util.Map.of(
-						"conversationId", conversationId,
-						"event", "PARTICIPANT_REMOVED",
-						"removedUserId", participantId,
-						"removedByUserId", userId,
-						"removedByName", removerName,
-						"removedAt", participant.getRemovedAt().toString()));
+				java.util.Map.of("conversationId", conversationId, "event", "PARTICIPANT_REMOVED", "removedUserId",
+						participantId, "removedByUserId", userId, "removedByName", removerName, "removedAt",
+						participant.getRemovedAt().toString()));
 
 		// Notify remaining active members
 		List<Long> remainingIds = participantRepository
 				.findByConversationIdAndStatus(conversationId, ConversationParticipant.ParticipantStatus.ACTIVE)
-				.stream().map(p -> p.getUser().getId())
-				.filter(id -> !id.equals(userId) && !id.equals(participantId))
+				.stream().map(p -> p.getUser().getId()).filter(id -> !id.equals(userId) && !id.equals(participantId))
 				.collect(Collectors.toList());
 		for (Long memberId : remainingIds) {
 			messagingTemplate.convertAndSendToUser(memberId.toString(), "/queue/conversation-update",
-					java.util.Map.of(
-							"conversationId", conversationId,
-							"event", "PARTICIPANT_REMOVED",
-							"removedUserId", participantId,
-							"removedByUserId", userId,
-							"removedByName", getDisplayName(memberId, remover),
-							"removedAt", participant.getRemovedAt().toString()));
+					java.util.Map.of("conversationId", conversationId, "event", "PARTICIPANT_REMOVED", "removedUserId",
+							participantId, "removedByUserId", userId, "removedByName",
+							getDisplayName(memberId, remover), "removedAt", participant.getRemovedAt().toString()));
 		}
 	}
 
@@ -466,12 +455,8 @@ public class ConversationService {
 		for (Long memberId : remainingIds) {
 			String leavingUserName = leavingUser != null ? getDisplayName(memberId, leavingUser) : userId.toString();
 			messagingTemplate.convertAndSendToUser(memberId.toString(), "/queue/conversation-update",
-					java.util.Map.of(
-							"conversationId", conversationId,
-							"event", "PARTICIPANT_LEFT",
-							"leftUserId", userId,
-							"leftUserName", leavingUserName,
-							"leftAt", participant.getLeftAt().toString()));
+					java.util.Map.of("conversationId", conversationId, "event", "PARTICIPANT_LEFT", "leftUserId",
+							userId, "leftUserName", leavingUserName, "leftAt", participant.getLeftAt().toString()));
 		}
 	}
 
@@ -566,11 +551,8 @@ public class ConversationService {
 		participant.setClearedAt(LocalDateTime.now());
 		participantRepository.save(participant);
 
-		return ConversationDto.ClearConversationResponse.builder()
-				.conversationId(conversationId)
-				.clearedMessagesCount(0)
-				.clearedAt(participant.getClearedAt())
-				.build();
+		return ConversationDto.ClearConversationResponse.builder().conversationId(conversationId)
+				.clearedMessagesCount(0).clearedAt(participant.getClearedAt()).build();
 	}
 
 	@Transactional
@@ -588,11 +570,8 @@ public class ConversationService {
 		participant.setClearedAt(now);
 		participantRepository.save(participant);
 
-		return ConversationDto.DeleteConversationResponse.builder()
-				.conversationId(conversationId)
-				.deletedMessagesCount(0)
-				.deletedAt(now)
-				.build();
+		return ConversationDto.DeleteConversationResponse.builder().conversationId(conversationId)
+				.deletedMessagesCount(0).deletedAt(now).build();
 	}
 
 	private ConversationDto.ConversationResponse mapToConversationResponse(Conversation conversation, Long userId) {
@@ -609,7 +588,8 @@ public class ConversationService {
 			LocalDateTime clearedAt = participant != null ? participant.getClearedAt() : null;
 			LocalDateTime removedAt = participant != null
 					&& participant.getStatus() == ConversationParticipant.ParticipantStatus.REMOVED
-					? participant.getRemovedAt() : null;
+							? participant.getRemovedAt()
+							: null;
 			LocalDateTime gapStart = participant != null ? participant.getGapStart() : null;
 			LocalDateTime readdedAt = participant != null ? participant.getReaddedAt() : null;
 			List<Message> lastMessages = messageRepository.findLastMessageByConversationId(conversation.getId(),
@@ -644,8 +624,8 @@ public class ConversationService {
 		if (conversation.getType() == Conversation.ConversationType.INDIVIDUAL) {
 			try {
 				ConversationParticipant otherParticipant = participantRepository
-						.findByConversationId(conversation.getId())
-						.stream().filter(p -> !p.getUser().getId().equals(userId)).findFirst().orElse(null);
+						.findByConversationId(conversation.getId()).stream()
+						.filter(p -> !p.getUser().getId().equals(userId)).findFirst().orElse(null);
 				if (otherParticipant != null) {
 					User otherUser = otherParticipant.getUser();
 					profilePictureUrl = otherUser.getProfilePictureUrl();
@@ -663,7 +643,8 @@ public class ConversationService {
 			}
 		}
 
-		boolean isRemoved = participant != null && participant.getStatus() == ConversationParticipant.ParticipantStatus.REMOVED;
+		boolean isRemoved = participant != null
+				&& participant.getStatus() == ConversationParticipant.ParticipantStatus.REMOVED;
 		String removedByName = null;
 		if (isRemoved && participant.getRemovedBy() != null) {
 			removedByName = getDisplayName(userId, participant.getRemovedBy());
@@ -677,9 +658,7 @@ public class ConversationService {
 				.isFavorite(participant != null && Boolean.TRUE.equals(participant.getIsFavorite()))
 				.profileImageUrl(profilePictureUrl).mobileNumber(mobileNumber).isOnline(isOnline)
 				.lastActiveAt(lastActiveAt).createdAt(conversation.getCreatedAt())
-				.removedAt(isRemoved ? participant.getRemovedAt() : null)
-				.removedByName(removedByName)
-				.build();
+				.removedAt(isRemoved ? participant.getRemovedAt() : null).removedByName(removedByName).build();
 	}
 
 	private ConversationDto.ConversationDetailsResponse mapToConversationDetailsResponse(Conversation conversation,
@@ -719,8 +698,8 @@ public class ConversationService {
 				.findMediaMessages(conversation.getId(), PageRequest.of(0, 50)).stream()
 				.filter(msg -> msg.getAttachments() != null && !msg.getAttachments().isEmpty()).map(msg -> {
 					List<MessageAttachment> sortedAtts = msg.getAttachments().stream()
-							.sorted(java.util.Comparator.comparingInt(
-									a -> (a.getSortOrder() != null ? a.getSortOrder() : 0)))
+							.sorted(java.util.Comparator
+									.comparingInt(a -> (a.getSortOrder() != null ? a.getSortOrder() : 0)))
 							.collect(Collectors.toList());
 					MessageAttachment first = sortedAtts.get(0);
 					List<ConversationDto.MediaItemDto> items = sortedAtts.stream()
@@ -733,17 +712,15 @@ public class ConversationService {
 					return ConversationDto.MediaDto.builder().messageId(msg.getId())
 							.type(msg.getType() != null ? msg.getType().name() : null).url(first.getFileUrl())
 							.thumbnailUrl(first.getThumbnailUrl()).fileName(first.getFileName())
-							.fileSize(first.getFileSize()).timestamp(msg.getCreatedAt())
-							.sender(msg.getSender() != null
-									? ConversationDto.MessageSenderDto.builder().id(msg.getSender().getId())
-												.displayName(getDisplayName(userId, msg.getSender())).build()
-									: null)
+							.fileSize(first.getFileSize()).timestamp(msg.getCreatedAt()).sender(
+									msg.getSender() != null
+											? ConversationDto.MessageSenderDto.builder().id(msg.getSender().getId())
+													.displayName(getDisplayName(userId, msg.getSender())).build()
+											: null)
 							.items(items).build();
 				}).collect(Collectors.toList());
 
-		int mediaCount = mediaList.stream()
-				.mapToInt(m -> m.getItems() != null ? m.getItems().size() : 1)
-				.sum();
+		int mediaCount = mediaList.stream().mapToInt(m -> m.getItems() != null ? m.getItems().size() : 1).sum();
 
 		return ConversationDto.ConversationDetailsResponse.builder().id(conversation.getId())
 				.title(conversation.getName()).type(conversation.getType().name())
@@ -754,9 +731,8 @@ public class ConversationService {
 						.profilePictureUrl(conversation.getCreatedBy().getProfilePictureUrl()).build())
 				.participants(
 						participants.stream().map(p -> mapToParticipantDto(p, userId)).collect(Collectors.toList()))
-				.settings(settings).mobileNumber(mobileNumber).participantCount(participantCount)
-				.media(mediaList).mediaCount(mediaCount)
-				.build();
+				.settings(settings).mobileNumber(mobileNumber).participantCount(participantCount).media(mediaList)
+				.mediaCount(mediaCount).build();
 	}
 
 	private ConversationDto.ParticipantDto mapToParticipantDto(ConversationParticipant participant,
@@ -782,8 +758,8 @@ public class ConversationService {
 		return ConversationDto.ParticipantDto.builder().userId(user.getId()).displayName(displayName)
 				.mobileNumber(user.getPhoneNumber()).profilePictureUrl(user.getProfilePictureUrl())
 				.participantRole(participant.getRole().name()).isOnline(isOnline).lastActiveAt(user.getLastActiveAt())
-				.joinedAt(participant.getJoinedAt()).addedByName(addedByName)
-				.removedByName(removedByName).removedAt(participant.getRemovedAt()).build();
+				.joinedAt(participant.getJoinedAt()).addedByName(addedByName).removedByName(removedByName)
+				.removedAt(participant.getRemovedAt()).build();
 	}
 
 	private String getDisplayName(Long currentUserId, User targetUser) {

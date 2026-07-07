@@ -36,8 +36,7 @@ public class StoryService {
 		Pageable pageable = PageRequest.of(offset / limit, limit);
 		List<Story> stories = storyRepository.findStoryFeed(userId, pageable);
 
-		List<StoryDto.StoryResponse> storyResponses = stories.stream()
-				.map(story -> mapToStoryResponse(story, userId))
+		List<StoryDto.StoryResponse> storyResponses = stories.stream().map(story -> mapToStoryResponse(story, userId))
 				.collect(Collectors.toList());
 
 		return StoryDto.StoryFeedResponse.builder().stories(storyResponses)
@@ -53,21 +52,13 @@ public class StoryService {
 		Story.StoryType type = Story.StoryType.valueOf(request.getStoryType().toUpperCase());
 		validateStoryRequest(type, request);
 
-		Story story = Story.builder()
-				.user(user)
-				.type(type)
-				.content(request.getContent())
-				.mediaUrl(request.getMediaUrl())
-				.thumbnailUrl(request.getThumbnailUrl())
-				.backgroundColor(request.getBackgroundColor())
-				.textStyle(request.getTextStyle())
-				.linkUrl(request.getLinkUrl())
-				.linkTitle(request.getLinkTitle())
-				.linkDescription(request.getLinkDescription())
-				.linkPreviewImage(request.getLinkPreviewImage())
+		Story story = Story.builder().user(user).type(type).content(request.getContent())
+				.mediaUrl(request.getMediaUrl()).thumbnailUrl(request.getThumbnailUrl())
+				.backgroundColor(request.getBackgroundColor()).textStyle(request.getTextStyle())
+				.linkUrl(request.getLinkUrl()).linkTitle(request.getLinkTitle())
+				.linkDescription(request.getLinkDescription()).linkPreviewImage(request.getLinkPreviewImage())
 				.privacy(Story.StoryPrivacy.valueOf(request.getPrivacySetting().toUpperCase()))
-				.expiresAt(LocalDateTime.now().plusHours(24))
-				.viewCount(0).isActive(true).build();
+				.expiresAt(LocalDateTime.now().plusHours(24)).viewCount(0).isActive(true).build();
 
 		story = storyRepository.save(story);
 		return mapToStoryResponse(story, userId);
@@ -80,17 +71,18 @@ public class StoryService {
 		if (story.isExpired()) {
 			throw new UserException(ErrorCode.STORY_EXPIRED);
 		}
-		
+
 		// Only count unique views per user
 		if (!storyViewRepository.existsByStoryIdAndUserId(storyId, userId)) {
-			User viewer = userRepository.findById(userId).orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
+			User viewer = userRepository.findById(userId)
+					.orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
 			storyViewRepository.save(StoryView.builder().story(story).user(viewer).build());
 
 //START ADDED BY SUSHIL
-		    // Owner viewing own story -> ignore
-		    if (!story.getUser().getId().equals(userId)) {
-		    	story.setViewCount(story.getViewCount() + 1);
-		    }
+			// Owner viewing own story -> ignore
+			if (!story.getUser().getId().equals(userId)) {
+				story.setViewCount(story.getViewCount() + 1);
+			}
 //END 
 			storyRepository.save(story);
 
@@ -102,10 +94,7 @@ public class StoryService {
 			payload.put("viewerName", viewer.getDisplayName());
 			payload.put("viewerAvatar", viewer.getProfilePictureUrl());
 			payload.put("viewedAt", LocalDateTime.now().toString());
-			messagingTemplate.convertAndSendToUser(
-					story.getUser().getId().toString(),
-					"/queue/story-views",
-					payload);
+			messagingTemplate.convertAndSendToUser(story.getUser().getId().toString(), "/queue/story-views", payload);
 
 			log.info("Story {} viewed by user {} — total views: {}", storyId, userId, story.getViewCount());
 		}
@@ -128,36 +117,22 @@ public class StoryService {
 //						.viewedAt(v.getViewedAt())
 //						.build())
 //				.collect(Collectors.toList());
-	
+
 //ADDED ->UPDATED BY SUSHIL		
-		List<StoryDto.StoryViewerResponse> viewers = views.stream()
-			    .filter(v -> !v.getUser().getId().equals(userId))
-			    .map(v -> {
+		List<StoryDto.StoryViewerResponse> viewers = views.stream().filter(v -> !v.getUser().getId().equals(userId))
+				.map(v -> {
 
-			        String displayName = contactRepository
-			            .findByViewerIdAndStoryOwnerId(
-			            	story.getUser().getId(),
-			                v.getUser().getId()
-			                )
-			            .map(c -> c.getDisplayName() != null
-			                    ? c.getDisplayName()
-			                    : v.getUser().getPhoneNumber())
-			            .orElse(v.getUser().getPhoneNumber());
+					String displayName = contactRepository
+							.findByViewerIdAndStoryOwnerId(story.getUser().getId(), v.getUser().getId())
+							.map(c -> c.getDisplayName() != null ? c.getDisplayName() : v.getUser().getPhoneNumber())
+							.orElse(v.getUser().getPhoneNumber());
 
-			        return StoryDto.StoryViewerResponse.builder()
-			            .viewerId(v.getUser().getId())
-			            .viewerName(displayName)
-			            .viewerAvatar(v.getUser().getProfilePictureUrl())
-			            .viewedAt(v.getViewedAt())
-			            .build();
-			    })
-			    .toList();
+					return StoryDto.StoryViewerResponse.builder().viewerId(v.getUser().getId()).viewerName(displayName)
+							.viewerAvatar(v.getUser().getProfilePictureUrl()).viewedAt(v.getViewedAt()).build();
+				}).toList();
 // END 
-		
-		return StoryDto.StoryViewersResponse.builder()
-				.viewers(viewers)
-				.totalViewers(story.getViewCount())
-				.build();
+
+		return StoryDto.StoryViewersResponse.builder().viewers(viewers).totalViewers(story.getViewCount()).build();
 	}
 
 	@Transactional
@@ -176,10 +151,8 @@ public class StoryService {
 		Pageable pageable = PageRequest.of(offset / limit, limit);
 		List<Story> stories = storyRepository.findUserStories(userId, pageable);
 
-		List<StoryDto.StoryResponse> storyResponses = stories.stream()
-				.filter(story -> !story.isExpired())
-				.map(story -> mapToStoryResponse(story, userId))
-				.collect(Collectors.toList());
+		List<StoryDto.StoryResponse> storyResponses = stories.stream().filter(story -> !story.isExpired())
+				.map(story -> mapToStoryResponse(story, userId)).collect(Collectors.toList());
 
 		return StoryDto.StoryFeedResponse.builder().stories(storyResponses)
 				.pagination(ApiResponse.PaginationInfo.builder().page(offset / limit + 1).limit(limit)
@@ -196,14 +169,12 @@ public class StoryService {
 
 		List<StoryDto.StoryResponse> storyResponses = stories.stream()
 				.filter(story -> !story.isExpired() && canViewStory(viewerId, story))
-				.map(story -> mapToStoryResponse(story, viewerId))
-				.collect(Collectors.toList());
+				.map(story -> mapToStoryResponse(story, viewerId)).collect(Collectors.toList());
 
 		long unviewedCount = storyResponses.stream().filter(s -> Boolean.FALSE.equals(s.getIsViewed())).count();
 
 		return StoryDto.UserStoriesResponse.builder().userId(userId).userName(user.getDisplayName())
-				.userAvatar(user.getProfilePictureUrl()).stories(storyResponses)
-				.unviewedCount((int) unviewedCount)
+				.userAvatar(user.getProfilePictureUrl()).stories(storyResponses).unviewedCount((int) unviewedCount)
 				.lastStoryAt(stories.isEmpty() ? null : stories.get(0).getCreatedAt()).build();
 	}
 
@@ -220,22 +191,22 @@ public class StoryService {
 
 	private void validateStoryRequest(Story.StoryType type, StoryDto.PostStoryRequest request) {
 		switch (type) {
-			case TEXT -> {
-				if (request.getContent() == null || request.getContent().isBlank())
-					throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "Content is required for TEXT story");
-			}
-			case IMAGE -> {
-				if (request.getMediaUrl() == null || request.getMediaUrl().isBlank())
-					throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "mediaUrl is required for IMAGE story");
-			}
-			case VIDEO -> {
-				if (request.getMediaUrl() == null || request.getMediaUrl().isBlank())
-					throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "mediaUrl is required for VIDEO story");
-			}
-			case LINK -> {
-				if (request.getLinkUrl() == null || request.getLinkUrl().isBlank())
-					throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "linkUrl is required for LINK story");
-			}
+		case TEXT -> {
+			if (request.getContent() == null || request.getContent().isBlank())
+				throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "Content is required for TEXT story");
+		}
+		case IMAGE -> {
+			if (request.getMediaUrl() == null || request.getMediaUrl().isBlank())
+				throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "mediaUrl is required for IMAGE story");
+		}
+		case VIDEO -> {
+			if (request.getMediaUrl() == null || request.getMediaUrl().isBlank())
+				throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "mediaUrl is required for VIDEO story");
+		}
+		case LINK -> {
+			if (request.getLinkUrl() == null || request.getLinkUrl().isBlank())
+				throw new StoryException(ErrorCode.STORY_CREATION_FAILED, "linkUrl is required for LINK story");
+		}
 		}
 	}
 
@@ -263,34 +234,20 @@ public class StoryService {
 		if (story.getUser().getId().equals(currentUserId)) {
 			displayName = "You";
 		} else {
-			displayName = contactRepository
-					.findByViewerIdAndStoryOwnerId(currentUserId, story.getUser().getId())
+			displayName = contactRepository.findByViewerIdAndStoryOwnerId(currentUserId, story.getUser().getId())
 					.map(c -> c.getDisplayName() != null ? c.getDisplayName() : story.getUser().getPhoneNumber())
 					.orElse(story.getUser().getPhoneNumber());
 		}
 
 		boolean isOwner = story.getUser().getId().equals(currentUserId);
 
-		return StoryDto.StoryResponse.builder()
-				.id(story.getId())
-				.userId(story.getUser().getId())
-				.userName(displayName)
-				.userAvatar(story.getUser().getProfilePictureUrl())
-				.content(story.getContent())
-				.mediaUrl(story.getMediaUrl())
-				.thumbnailUrl(story.getThumbnailUrl())
-				.storyType(story.getType().name())
-				.backgroundColor(story.getBackgroundColor())
-				.textStyle(story.getTextStyle())
-				.linkUrl(story.getLinkUrl())
-				.linkTitle(story.getLinkTitle())
-				.linkDescription(story.getLinkDescription())
-				.linkPreviewImage(story.getLinkPreviewImage())
-				.createdAt(story.getCreatedAt())
-				.viewCount(isOwner ? story.getViewCount() : null)
-				.isViewed(isViewed)
-				.privacySetting(story.getPrivacy().name())
-				.expiresAt(story.getExpiresAt())
-				.build();
+		return StoryDto.StoryResponse.builder().id(story.getId()).userId(story.getUser().getId()).userName(displayName)
+				.userAvatar(story.getUser().getProfilePictureUrl()).content(story.getContent())
+				.mediaUrl(story.getMediaUrl()).thumbnailUrl(story.getThumbnailUrl()).storyType(story.getType().name())
+				.backgroundColor(story.getBackgroundColor()).textStyle(story.getTextStyle()).linkUrl(story.getLinkUrl())
+				.linkTitle(story.getLinkTitle()).linkDescription(story.getLinkDescription())
+				.linkPreviewImage(story.getLinkPreviewImage()).createdAt(story.getCreatedAt())
+				.viewCount(isOwner ? story.getViewCount() : null).isViewed(isViewed)
+				.privacySetting(story.getPrivacy().name()).expiresAt(story.getExpiresAt()).build();
 	}
 }

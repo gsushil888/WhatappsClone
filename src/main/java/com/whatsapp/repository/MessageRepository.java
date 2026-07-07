@@ -36,8 +36,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 	Message findByIdAndConversationIdAndSenderId(@Param("messageId") Long messageId,
 			@Param("conversationId") Long conversationId, @Param("userId") Long userId);
 
-	@Query("SELECT m FROM Message m JOIN FETCH m.sender " + "WHERE m.conversation.id = :conversationId " + "AND m.isDeleted = false "
-			+ "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+	@Query("SELECT m FROM Message m JOIN FETCH m.sender " + "WHERE m.conversation.id = :conversationId "
+			+ "AND m.isDeleted = false " + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
 			+ "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
 			+ "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
 			+ "ORDER BY m.createdAt DESC")
@@ -82,8 +82,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 			+ "AND m.type IN ('IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT') " + "ORDER BY m.createdAt DESC")
 	List<Message> findMediaMessages(@Param("conversationId") Long conversationId, Pageable pageable);
 
-	@Query("SELECT m FROM Message m JOIN FETCH m.sender " + "WHERE m.conversation.id = :conversationId " + "AND m.id < :messageId "
-			+ "AND m.isDeleted = false " + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+	@Query("SELECT m FROM Message m JOIN FETCH m.sender " + "WHERE m.conversation.id = :conversationId "
+			+ "AND m.id < :messageId " + "AND m.isDeleted = false "
+			+ "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
 			+ "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
 			+ "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
 			+ "ORDER BY m.id DESC")
@@ -91,8 +92,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 			@Param("clearedAt") LocalDateTime clearedAt, @Param("removedAt") LocalDateTime removedAt,
 			@Param("gapStart") LocalDateTime gapStart, @Param("readdedAt") LocalDateTime readdedAt, Pageable pageable);
 
-	@Query("SELECT m FROM Message m JOIN FETCH m.sender " + "WHERE m.conversation.id = :conversationId " + "AND m.id > :messageId "
-			+ "AND m.isDeleted = false " + "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
+	@Query("SELECT m FROM Message m JOIN FETCH m.sender " + "WHERE m.conversation.id = :conversationId "
+			+ "AND m.id > :messageId " + "AND m.isDeleted = false "
+			+ "AND (:clearedAt IS NULL OR m.createdAt > :clearedAt) "
 			+ "AND (:removedAt IS NULL OR m.createdAt <= :removedAt) "
 			+ "AND (:gapStart IS NULL OR :readdedAt IS NULL OR m.createdAt <= :gapStart OR m.createdAt >= :readdedAt) "
 			+ "ORDER BY m.id ASC")

@@ -24,6 +24,7 @@ public class MessageDto {
     private String senderName;
     private String senderMobileNumber;
     private String senderAvatar;
+    private Boolean isContact;
     private String content;
     private String messageType;
     private String mediaUrl;
@@ -143,6 +144,7 @@ public class MessageDto {
     private String emoji;
     private Long userId;
     private String displayName;
+    private String mobileNumber;
     private Long attachmentId; // null = message-level reaction
     private LocalDateTime createdAt;
   }
